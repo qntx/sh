@@ -12,7 +12,8 @@
 //   curl -fsSL https://sh.qntx.fun/xmtp | sh
 //   irm  https://sh.qntx.fun/xmtp/ps | iex
 
-const ORG = "qntx";
+const ORGS = { labs: "qntx-labs" };
+const DEFAULT_ORG = "qntx";
 const DEFAULT_REPO = "machi";
 const RAW = "https://raw.githubusercontent.com";
 const CACHE_TTL = 3600;
@@ -23,12 +24,14 @@ function resolve(pathname) {
   const ps = seg.at(-1) === "ps";
   if (ps) seg.pop();
 
+  const org = ORGS[seg[0]] ? ORGS[seg.shift()] : DEFAULT_ORG;
+
   if (seg.length > 1) return null;
 
   const repo = seg[0] ?? DEFAULT_REPO;
   if (!REPO_RE.test(repo)) return null;
 
-  return `${RAW}/${ORG}/${repo}/main/install.${ps ? "ps1" : "sh"}`;
+  return `${RAW}/${org}/${repo}/main/install.${ps ? "ps1" : "sh"}`;
 }
 
 export default {
