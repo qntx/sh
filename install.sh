@@ -5,7 +5,7 @@
 #   curl -fsSL <url> | sh                            # install
 #   curl -fsSL <url> | sh -s -- --uninstall          # uninstall
 #   curl -fsSL <url> | sh -s -- --dry-run            # preview
-#   curl -fsSL <url> | sh -s -- --help               # this message
+#   curl -fsSL <url> | sh -s -- --help               # show this help
 #
 # Environment (uppercased BIN, '-' -> '_'):
 #   <BIN>_VERSION      Pin a version (default: latest release)
@@ -29,9 +29,10 @@ warn() { printf '%s%s%s\n' "$B" "$*" "$N" >&2; }
 err()  { printf '%serror%s: %s\n' "$R" "$N" "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
-# HTTP GET with 3 attempts and exponential backoff. $1=url, $2=outfile (optional).
+# HTTP GET with retries and exponential backoff.
+# $1=url, $2=outfile (empty for stdout), $3=max attempts (default 3).
 http() {
-    url=$1 out=${2:-} i=1 d=1
+    url=$1 out=${2:-} max=${3:-3} i=1 d=1
     while :; do
         if have curl; then
             if [ -n "$out" ]; then
@@ -48,7 +49,7 @@ http() {
         else
             err "curl or wget is required"
         fi
-        [ "$i" -ge 3 ] && return 1
+        [ "$i" -ge "$max" ] && return 1
         sleep "$d"; i=$((i + 1)); d=$((d * 2))
     done
 }
@@ -127,11 +128,13 @@ add_path() {
     say "  restart your shell to apply"
 }
 
-install_dir() { eval "echo \${${UP}_INSTALL_DIR:-\$HOME/.local/bin}"; }
+# Safely read `${UP}_INSTALL_DIR` via eval while keeping expansion quoted so that
+# values containing `;` or `$()` cannot smuggle in extra commands.
+install_dir() { eval "printf %s \"\${${UP}_INSTALL_DIR:-\$HOME/.local/bin}\""; }
 
 install_cli() {
     t=$(target)
-    eval "v=\${${UP}_VERSION:-}"
+    eval "v=\"\${${UP}_VERSION:-}\""
     [ -n "$v" ] || v=$(latest)
     d=$(install_dir)
     archive="$BIN-$v-$t.tar.gz"
@@ -147,7 +150,7 @@ install_cli() {
     tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
     http "$url" "$tmp/$archive" || err "failed to download $url"
 
-    if http "$url.sha256" "$tmp/$archive.sha256" 2>/dev/null; then
+    if http "$url.sha256" "$tmp/$archive.sha256" 1 2>/dev/null; then
         exp=$(awk '{print $1}' "$tmp/$archive.sha256")
         act=$(sha256 "$tmp/$archive")
         [ "$act" = "$exp" ] || err "checksum mismatch: expected $exp, got $act"
@@ -190,12 +193,12 @@ Usage:
   curl -fsSL <url> | sh                            # install
   curl -fsSL <url> | sh -s -- --uninstall          # uninstall
   curl -fsSL <url> | sh -s -- --dry-run            # preview
-  curl -fsSL <url> | sh -s -- --help               # this message
+  curl -fsSL <url> | sh -s -- --help               # show this help
 
 Environment:
   ${UP}_VERSION       Pin a version (default: latest)
   ${UP}_INSTALL_DIR   Install directory (default: \$HOME/.local/bin)
-  NO_COLOR          Disable color output
+  NO_COLOR            Disable color output
 EOF
 }
 

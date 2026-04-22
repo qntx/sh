@@ -27,6 +27,7 @@ const CACHE_TTL = 3600;
 const UPSTREAM_TIMEOUT_MS = 10_000;
 const UPSTREAM_FAILURE_STATUS = 599;
 const REPO_RE = /^[a-z\d](?:[a-z\d._-]*[a-z\d])?$/i;
+const BIN_RE = /^[a-z\d](?:[a-z\d_-]*[a-z\d])?$/i;
 
 const BASE_HEADERS = Object.freeze({
   "x-content-type-options": "nosniff",
@@ -48,7 +49,13 @@ function parseRoute(pathname) {
   const ps = seg.at(-1) === "ps";
   if (ps) seg.pop();
 
-  const org = ORGS[seg[0]] ? ORGS[seg.shift()] : DEFAULT_ORG;
+  let org = DEFAULT_ORG;
+  if (seg.length > 0 && ORGS[seg[0]]) {
+    org = ORGS[seg.shift()];
+    // Aliased orgs require an explicit repo, otherwise `/labs/ps` would silently
+    // fall back to DEFAULT_REPO under the wrong org.
+    if (seg.length === 0) return null;
+  }
 
   if (seg.length > 1) return null;
 
@@ -74,7 +81,7 @@ async function rawFetch(path) {
       signal: ctrl.signal,
     });
   } catch (err) {
-    console.error("upstream fetch failed", { path, err });
+    console.error("upstream fetch failed", { path, error: String(err?.message ?? err), name: err?.name });
     return new Response(null, { status: UPSTREAM_FAILURE_STATUS });
   } finally {
     clearTimeout(timer);
@@ -151,7 +158,13 @@ async function resolveScript(route) {
   let bin = repo;
   if (binResp?.ok) {
     const trimmed = (await binResp.text()).trim();
-    if (trimmed) bin = trimmed;
+    // Reject anything that could break the template or inject shell/PowerShell
+    // syntax via the BIN="__BIN__" substitution. Must be a plain identifier.
+    if (trimmed && BIN_RE.test(trimmed)) {
+      bin = trimmed;
+    } else if (trimmed) {
+      return badGateway("Invalid install.bin");
+    }
   } else if (binResp && binResp.status !== 404) {
     return badGateway();
   }
@@ -182,7 +195,7 @@ export default {
     try {
       return await handle(request);
     } catch (err) {
-      console.error("unhandled error", { err });
+      console.error("unhandled error", { error: String(err?.message ?? err), name: err?.name, stack: err?.stack });
       return internalError();
     }
   },

@@ -4,3 +4,7 @@ compatibility_date = "2025-01-01"
 
 # Bind to sh.qntx.fun via Cloudflare Dashboard > Workers > Custom Domains.
 # No routes needed when using Custom Domains.
+
+# Enable log delivery so console.error surfaces in the Cloudflare dashboard.
+[observability]
+enabled = true

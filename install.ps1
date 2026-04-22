@@ -41,6 +41,10 @@ function Invoke-Http {
             return Invoke-RestMethod -Uri $Uri -UserAgent "$Bin-installer"
         }
         catch {
+            # Don't retry client errors (4xx) — they're permanent, not transient.
+            $code = 0
+            try { $code = [int]$_.Exception.Response.StatusCode } catch {}
+            if ($code -ge 400 -and $code -lt 500) { throw }
             if (++$i -ge 3) { throw }
             Start-Sleep -Seconds $d; $d *= 2
         }
@@ -177,7 +181,7 @@ Usage:
   irm <url> | iex                              # install
   `$env:UNINSTALL=1; irm <url> | iex           # uninstall
   `$env:DRY_RUN=1;   irm <url> | iex           # preview
-  `$env:HELP=1;      irm <url> | iex           # this message
+  `$env:HELP=1;      irm <url> | iex           # show this help
 
 Environment:
   ${Up}_VERSION       Pin a version (default: latest)
@@ -185,10 +189,15 @@ Environment:
 "@
 }
 
+# Match install.sh semantics: only the literal string "1" enables a flag.
+# PowerShell's [bool]"0" / [bool]"false" both evaluate to $true, so a naive
+# truthy check would trigger on `$env:HELP="0"` — not what users expect.
+function Test-Flag([string]$v) { $v -eq '1' }
+
 try {
-    if ($env:HELP) { Show-Usage; return }
-    if ($env:UNINSTALL) { Uninstall-Cli; return }
-    Install-Cli -DryRun:([bool]$env:DRY_RUN)
+    if (Test-Flag $env:HELP) { Show-Usage; return }
+    if (Test-Flag $env:UNINSTALL) { Uninstall-Cli; return }
+    Install-Cli -DryRun:(Test-Flag $env:DRY_RUN)
 }
 catch {
     Write-Error $_
