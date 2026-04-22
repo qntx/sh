@@ -15,16 +15,31 @@ $ErrorActionPreference = 'Stop'
 $InformationPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
 
+# PowerShell 5.1 on Windows 10 <1709 / Server 2012 R2 defaults to TLS 1.0/1.1,
+# but GitHub and Cloudflare require TLS 1.2+. Enable it unconditionally so HTTP
+# calls don't fail with cryptic SSL handshake errors.
+try {
+    [Net.ServicePointManager]::SecurityProtocol =
+    [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+}
+catch {}
+
 $Repo = '__REPO__'
 $Bin = '__BIN__'
 $Up = ($Bin -replace '-', '_').ToUpper()
 
 function Get-Target {
-    $a = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-    switch ($a) {
-        'X64' { return 'x86_64-pc-windows-msvc' }
-        'Arm64' { return 'aarch64-pc-windows-msvc' }
-        default { throw "unsupported architecture: $a" }
+    # Avoid [RuntimeInformation]::OSArchitecture: it requires .NET Framework
+    # 4.7.1+ which is missing on older Windows (e.g. Win10 <1709, Server 2012 R2)
+    # and fails under StrictMode with 'property not found'. The env vars below
+    # are populated by Windows itself on every supported release.
+    #   PROCESSOR_ARCHITECTURE  = current-process architecture
+    #   PROCESSOR_ARCHITEW6432  = OS architecture when running 32-bit PS on 64-bit OS
+    $arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+    switch ($arch) {
+        'AMD64' { return 'x86_64-pc-windows-msvc' }
+        'ARM64' { return 'aarch64-pc-windows-msvc' }
+        default { throw "unsupported architecture: $arch" }
     }
 }
 
@@ -150,7 +165,14 @@ function Install-Cli {
     }
 
     if ($env:GITHUB_PATH) {
-        $d | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        # PS 5.1's `-Encoding utf8` writes a BOM on first append, which GitHub
+        # Actions' Go runner treats as part of the first path entry. Force
+        # UTF-8 *without* BOM via the .NET API — utf8NoBOM only exists in 7+.
+        [IO.File]::AppendAllText(
+            $env:GITHUB_PATH,
+            "$d`r`n",
+            (New-Object System.Text.UTF8Encoding $false)
+        )
     }
     elseif (($env:Path -split ';') -notcontains $d) {
         Edit-UserPath -Dir $d
