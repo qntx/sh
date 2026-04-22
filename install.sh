@@ -29,10 +29,10 @@ warn() { printf '%s%s%s\n' "$B" "$*" "$N" >&2; }
 err()  { printf '%serror%s: %s\n' "$R" "$N" "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
-# HTTP GET with retries and exponential backoff.
-# $1=url, $2=outfile (empty for stdout), $3=max attempts (default 3).
+# HTTP GET with 3 attempts and exponential backoff.
+# $1=url, $2=outfile (empty for stdout).
 http() {
-    url=$1 out=${2:-} max=${3:-3} i=1 d=1
+    url=$1 out=${2:-} i=1 d=1
     while :; do
         if have curl; then
             if [ -n "$out" ]; then
@@ -49,7 +49,7 @@ http() {
         else
             err "curl or wget is required"
         fi
-        [ "$i" -ge "$max" ] && return 1
+        [ "$i" -ge 3 ] && return 1
         sleep "$d"; i=$((i + 1)); d=$((d * 2))
     done
 }
@@ -82,13 +82,6 @@ latest() {
         | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
     [ -n "$t" ] || err "failed to detect latest version (network error or rate limited)"
     echo "${t#v}"
-}
-
-sha256() {
-    if have sha256sum; then sha256sum "$1" | awk '{print $1}'
-    elif have shasum; then shasum -a 256 "$1" | awk '{print $1}'
-    else err "sha256sum or shasum is required"
-    fi
 }
 
 # Locate $BIN inside an extracted archive, tolerating an optional top-level folder.
@@ -151,15 +144,6 @@ install_cli() {
 
     say "  downloading $archive"
     http "$url" "$tmp/$archive" || err "failed to download $url"
-
-    if http "$url.sha256" "$tmp/$archive.sha256" 1 2>/dev/null; then
-        exp=$(awk '{print $1}' "$tmp/$archive.sha256")
-        act=$(sha256 "$tmp/$archive")
-        [ "$act" = "$exp" ] || err "checksum mismatch: expected $exp, got $act"
-        say "  checksum verified"
-    else
-        warn "  no published checksum, skipping verification"
-    fi
 
     say "  extracting"
     tar xzf "$tmp/$archive" -C "$tmp"

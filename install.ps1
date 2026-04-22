@@ -140,7 +140,6 @@ function Install-Cli {
     $tmp = New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid()))
     try {
         $ap = Join-Path $tmp.FullName $archive
-        $sp = "$ap.sha256"
 
         # NOTE: $ProgressPreference is 'SilentlyContinue' globally because PS 5.1's
         # Invoke-WebRequest progress bar is pathologically slow (every-byte host
@@ -148,17 +147,6 @@ function Install-Cli {
         # see what the installer is doing.
         Write-Information "  downloading $archive"
         Invoke-Http -Uri $url -OutFile $ap
-
-        try {
-            Invoke-Http -Uri "$url.sha256" -OutFile $sp
-            $exp = (Get-Content -LiteralPath $sp -TotalCount 1).Split()[0]
-            $act = (Get-FileHash -LiteralPath $ap -Algorithm SHA256).Hash
-            if ($act -ne $exp) { throw "checksum mismatch: expected $exp, got $act" }
-            Write-Information '  checksum verified'
-        }
-        catch {
-            Write-Warning '  no published checksum, skipping verification'
-        }
 
         Write-Information '  extracting'
         Expand-Archive -LiteralPath $ap -DestinationPath $tmp.FullName -Force

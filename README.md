@@ -80,7 +80,6 @@ where `<target>` is a Rust target triple such as `x86_64-unknown-linux-gnu`, `aa
 
 The default `install.{sh,ps1}` ships with:
 
-- **SHA256 verification** against `<archive>.sha256` sidecar (warns and continues if absent)
 - **Network retry** with exponential backoff, up to 3 attempts
 - **Multi-shell PATH** — writes `.zshrc`, `.bashrc`, `.bash_profile`, `.profile`, and `~/.config/fish/conf.d/` when present
 - **musl detection** on Linux (picks `unknown-linux-musl` vs `unknown-linux-gnu`)
