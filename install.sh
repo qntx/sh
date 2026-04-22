@@ -2,200 +2,184 @@
 # Installer for a GitHub-hosted CLI, served via sh.qntx.fun.
 #
 # Usage:
-#   curl -fsSL <url> | sh
-#   curl -fsSL <url> | sh -s -- --uninstall
-#   curl -fsSL <url> | sh -s -- --dry-run
-#   curl -fsSL <url> | sh -s -- --help
+#   curl -fsSL <url> | sh                            # install
+#   curl -fsSL <url> | sh -s -- --uninstall          # uninstall
+#   curl -fsSL <url> | sh -s -- --dry-run            # preview
+#   curl -fsSL <url> | sh -s -- --help               # this message
 #
-# Environment (uppercased BIN prefix, dashes to underscores):
-#   <BIN>_VERSION       Install a specific version (no 'v' prefix)
-#   <BIN>_INSTALL_DIR   Install directory (default: $HOME/.local/bin)
-#   NO_COLOR            Disable color output when set
+# Environment (uppercased BIN, '-' -> '_'):
+#   <BIN>_VERSION      Pin a version (default: latest release)
+#   <BIN>_INSTALL_DIR  Install directory (default: $HOME/.local/bin)
+#   NO_COLOR           Disable color output
 
 set -eu
 
 REPO="__REPO__"
 BIN="__BIN__"
-
-BIN_UPPER=$(echo "$BIN" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
-MAX_RETRIES=3
+UP=$(echo "$BIN" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
-    BOLD=$(printf '\033[1m'); RED=$(printf '\033[31m'); RESET=$(printf '\033[0m')
+    B=$(printf '\033[1m'); R=$(printf '\033[31m'); N=$(printf '\033[0m')
 else
-    BOLD=""; RED=""; RESET=""
+    B=''; R=''; N=''
 fi
 
-say()  { printf '%s%s%s\n' "$BOLD" "$*" "$RESET"; }
-warn() { printf '%s%s%s\n' "$BOLD" "$*" "$RESET" >&2; }
-err()  { printf '%serror%s: %s\n' "$RED" "$RESET" "$*" >&2; exit 1; }
+say()  { printf '%s%s%s\n' "$B" "$*" "$N"; }
+warn() { printf '%s%s%s\n' "$B" "$*" "$N" >&2; }
+err()  { printf '%serror%s: %s\n' "$R" "$N" "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
-# HTTP GET with up to MAX_RETRIES attempts and exponential backoff.
-# Args: url [output_file]. Writes to stdout if output_file omitted.
-http_get() {
-    _url=$1; _out=${2:-}; _attempt=1; _delay=1
-    while : ; do
-        _ok=0
+# HTTP GET with 3 attempts and exponential backoff. $1=url, $2=outfile (optional).
+http() {
+    url=$1 out=${2:-} i=1 d=1
+    while :; do
         if have curl; then
-            if [ -n "$_out" ]; then
-                curl -fsSL -A "$BIN-installer" -o "$_out" "$_url" && _ok=1
+            if [ -n "$out" ]; then
+                curl -fsSL -A "$BIN-installer" -o "$out" "$url" && return 0
             else
-                curl -fsSL -A "$BIN-installer" "$_url" && _ok=1
+                curl -fsSL -A "$BIN-installer" "$url" && return 0
             fi
         elif have wget; then
-            if [ -n "$_out" ]; then
-                wget -q --user-agent="$BIN-installer" -O "$_out" "$_url" && _ok=1
+            if [ -n "$out" ]; then
+                wget -q --user-agent="$BIN-installer" -O "$out" "$url" && return 0
             else
-                wget -q --user-agent="$BIN-installer" -O - "$_url" && _ok=1
+                wget -q --user-agent="$BIN-installer" -O- "$url" && return 0
             fi
         else
             err "curl or wget is required"
         fi
-        [ "$_ok" = 1 ] && return 0
-        [ "$_attempt" -ge "$MAX_RETRIES" ] && return 1
-        sleep "$_delay"
-        _attempt=$((_attempt + 1)); _delay=$((_delay * 2))
+        [ "$i" -ge 3 ] && return 1
+        sleep "$d"; i=$((i + 1)); d=$((d * 2))
     done
 }
 
-detect_libc() {
-    for p in /lib /lib64 /usr/lib; do
-        [ -d "$p" ] || continue
-        ls "$p"/ld-musl-* >/dev/null 2>&1 && { echo musl; return; }
-    done
-    have ldd && ldd --version 2>&1 | grep -qi musl && { echo musl; return; }
-    echo gnu
-}
-
-detect_target() {
-    _os=$(uname -s); _arch=$(uname -m)
-    case "$_os" in
-        Linux)  _os="unknown-linux-$(detect_libc)" ;;
-        Darwin)
-            _os="apple-darwin"
-            [ "$_arch" = x86_64 ] && sysctl -n hw.optional.arm64 2>/dev/null | grep -q 1 && _arch=aarch64
+target() {
+    os=$(uname -s); arch=$(uname -m)
+    case "$os" in
+        Linux)
+            os=unknown-linux-gnu
+            for p in /lib /lib64 /usr/lib; do
+                ls "$p"/ld-musl-* >/dev/null 2>&1 && { os=unknown-linux-musl; break; }
+            done
             ;;
-        *) err "unsupported OS: $_os" ;;
+        Darwin)
+            os=apple-darwin
+            [ "$arch" = x86_64 ] && sysctl -n hw.optional.arm64 2>/dev/null | grep -q 1 && arch=aarch64
+            ;;
+        *) err "unsupported OS: $os" ;;
     esac
-    case "$_arch" in
-        x86_64|amd64)  _arch=x86_64 ;;
-        aarch64|arm64) _arch=aarch64 ;;
-        *) err "unsupported architecture: $_arch" ;;
+    case "$arch" in
+        x86_64|amd64)  arch=x86_64 ;;
+        aarch64|arm64) arch=aarch64 ;;
+        *) err "unsupported architecture: $arch" ;;
     esac
-    echo "$_arch-$_os"
+    echo "$arch-$os"
 }
 
-latest_version() {
-    _tag=$(http_get "https://api.github.com/repos/$REPO/releases/latest" \
+latest() {
+    t=$(http "https://api.github.com/repos/$REPO/releases/latest" \
         | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
-    [ -n "$_tag" ] || err "failed to detect latest version (network error or rate limited)"
-    echo "${_tag#v}"
+    [ -n "$t" ] || err "failed to detect latest version (network error or rate limited)"
+    echo "${t#v}"
 }
 
-sha256_of() {
+sha256() {
     if have sha256sum; then sha256sum "$1" | awk '{print $1}'
     elif have shasum; then shasum -a 256 "$1" | awk '{print $1}'
-    else err "sha256sum or shasum is required for checksum verification"
+    else err "sha256sum or shasum is required"
     fi
 }
 
-find_binary() {
+# Locate $BIN inside an extracted archive, tolerating an optional top-level folder.
+find_bin() {
     [ -f "$1/$BIN" ] && { echo "$1/$BIN"; return; }
-    _found=$(find "$1" -type f -name "$BIN" 2>/dev/null | head -1)
-    [ -n "$_found" ] || err "binary '$BIN' not found in archive"
-    echo "$_found"
+    f=$(find "$1" -type f -name "$BIN" 2>/dev/null | head -1)
+    [ -n "$f" ] || err "binary '$BIN' not found in archive"
+    echo "$f"
 }
 
-in_path() { case ":$PATH:" in *":$1:"*) return 0 ;; esac; return 1; }
-
-update_shells_path() {
-    _dir=$1
-    _line="export PATH=\"$_dir:\$PATH\""
-    _any=0
-    for _rc in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
-        [ -f "$_rc" ] || continue
-        _any=1
-        grep -qF -- "$_line" "$_rc" 2>/dev/null && continue
-        printf '\n%s\n' "$_line" >> "$_rc"
-        say "  added PATH entry to ~/${_rc#$HOME/}"
+# Append the PATH entry to every existing shell rc, plus fish conf.d.
+add_path() {
+    dir=$1
+    case ":$PATH:" in *":$dir:"*) return ;; esac
+    line="export PATH=\"$dir:\$PATH\""
+    touched=0
+    for rc in .zshrc .bashrc .bash_profile .profile; do
+        [ -f "$HOME/$rc" ] || continue
+        touched=1
+        grep -qF -- "$line" "$HOME/$rc" 2>/dev/null && continue
+        printf '\n%s\n' "$line" >> "$HOME/$rc"
+        say "  added PATH entry to ~/$rc"
     done
     if [ -d "$HOME/.config/fish" ]; then
-        _any=1
-        _fish="$HOME/.config/fish/conf.d/$BIN-path.fish"
-        mkdir -p "$(dirname "$_fish")"
-        if [ ! -f "$_fish" ] || ! grep -qF "$_dir" "$_fish"; then
-            echo "fish_add_path -g '$_dir'" > "$_fish"
+        touched=1
+        fc="$HOME/.config/fish/conf.d/$BIN-path.fish"
+        mkdir -p "$(dirname "$fc")"
+        if [ ! -f "$fc" ] || ! grep -qF "$dir" "$fc"; then
+            printf "fish_add_path -g '%s'\n" "$dir" > "$fc"
             say "  added PATH entry to ~/.config/fish/conf.d/$BIN-path.fish"
         fi
     fi
-    if [ "$_any" -eq 0 ]; then
-        printf '%s\n' "$_line" >> "$HOME/.profile"
+    if [ "$touched" -eq 0 ]; then
+        printf '%s\n' "$line" >> "$HOME/.profile"
         say "  created ~/.profile"
     fi
+    say "  restart your shell to apply"
 }
 
-resolve_dir() {
-    eval "_d=\${${BIN_UPPER}_INSTALL_DIR:-\$HOME/.local/bin}"
-    echo "$_d"
-}
+install_dir() { eval "echo \${${UP}_INSTALL_DIR:-\$HOME/.local/bin}"; }
 
-do_install() {
-    _target=$(detect_target)
-    eval "_ver=\${${BIN_UPPER}_VERSION:-}"
-    [ -n "$_ver" ] || _ver=$(latest_version)
-    _dir=$(resolve_dir)
+install_cli() {
+    t=$(target)
+    eval "v=\${${UP}_VERSION:-}"
+    [ -n "$v" ] || v=$(latest)
+    d=$(install_dir)
+    archive="$BIN-$v-$t.tar.gz"
+    url="https://github.com/$REPO/releases/download/v$v/$archive"
 
-    _archive="$BIN-$_ver-$_target.tar.gz"
-    _url="https://github.com/$REPO/releases/download/v$_ver/$_archive"
-
-    say "Installing $BIN v$_ver ($_target)"
-    if [ "$DRY_RUN" -eq 1 ]; then
-        say "[dry-run] would download: $_url"
-        say "[dry-run] would install:  $_dir/$BIN"
+    say "Installing $BIN v$v ($t)"
+    if [ "$DRY" = 1 ]; then
+        say "[dry-run] download: $url"
+        say "[dry-run] install:  $d/$BIN"
         return 0
     fi
 
-    _tmp=$(mktemp -d); trap 'rm -rf "$_tmp"' EXIT
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    http "$url" "$tmp/$archive" || err "failed to download $url"
 
-    http_get "$_url" "$_tmp/$_archive" || err "failed to download $_url"
-
-    if http_get "$_url.sha256" "$_tmp/$_archive.sha256" 2>/dev/null; then
-        _expected=$(awk '{print $1}' "$_tmp/$_archive.sha256")
-        _actual=$(sha256_of "$_tmp/$_archive")
-        [ "$_actual" = "$_expected" ] || err "checksum mismatch: expected $_expected, got $_actual"
+    if http "$url.sha256" "$tmp/$archive.sha256" 2>/dev/null; then
+        exp=$(awk '{print $1}' "$tmp/$archive.sha256")
+        act=$(sha256 "$tmp/$archive")
+        [ "$act" = "$exp" ] || err "checksum mismatch: expected $exp, got $act"
         say "  checksum verified"
     else
         warn "  no published checksum, skipping verification"
     fi
 
-    tar xzf "$_tmp/$_archive" -C "$_tmp"
-    _bin_path=$(find_binary "$_tmp")
+    tar xzf "$tmp/$archive" -C "$tmp"
+    src=$(find_bin "$tmp")
 
-    mkdir -p "$_dir"
-    install -m 755 "$_bin_path" "$_dir/$BIN"
-    say "  installed $_dir/$BIN"
+    mkdir -p "$d"
+    install -m 755 "$src" "$d/$BIN"
+    say "  installed $d/$BIN"
 
-    if ! in_path "$_dir"; then
-        update_shells_path "$_dir"
-        say "  restart your shell to pick up the new PATH"
-    fi
-
+    add_path "$d"
     say ""
-    say "$BIN v$_ver installed."
+    say "$BIN v$v installed."
 }
 
-do_uninstall() {
-    _dir=$(resolve_dir); _target="$_dir/$BIN"
-    if [ -f "$_target" ]; then
-        rm -f "$_target"
-        say "removed $_target"
+uninstall_cli() {
+    d=$(install_dir)
+    t="$d/$BIN"
+    if [ -f "$t" ]; then
+        rm -f "$t"
+        say "removed $t"
     else
-        say "$_target not found; nothing to remove"
+        say "$t not found"
     fi
-    _fish="$HOME/.config/fish/conf.d/$BIN-path.fish"
-    [ -f "$_fish" ] && rm -f "$_fish" && say "removed $_fish"
-    say "note: PATH entries in shell rc files were not touched"
+    fc="$HOME/.config/fish/conf.d/$BIN-path.fish"
+    [ -f "$fc" ] && rm -f "$fc" && say "removed $fc"
+    say "note: PATH entries in shell rc files were left in place"
 }
 
 usage() {
@@ -203,33 +187,33 @@ usage() {
 Installer for $BIN.
 
 Usage:
-  curl -fsSL <url> | sh
-  curl -fsSL <url> | sh -s -- --uninstall
-  curl -fsSL <url> | sh -s -- --dry-run
-  curl -fsSL <url> | sh -s -- --help
+  curl -fsSL <url> | sh                            # install
+  curl -fsSL <url> | sh -s -- --uninstall          # uninstall
+  curl -fsSL <url> | sh -s -- --dry-run            # preview
+  curl -fsSL <url> | sh -s -- --help               # this message
 
 Environment:
-  ${BIN_UPPER}_VERSION        Install a specific version (no 'v' prefix)
-  ${BIN_UPPER}_INSTALL_DIR    Install directory (default: \$HOME/.local/bin)
-  NO_COLOR                  Disable color output
+  ${UP}_VERSION       Pin a version (default: latest)
+  ${UP}_INSTALL_DIR   Install directory (default: \$HOME/.local/bin)
+  NO_COLOR          Disable color output
 EOF
 }
 
-ACTION=install
-DRY_RUN=0
-[ "${UNINSTALL:-0}" = 1 ] && ACTION=uninstall
-[ "${DRY_RUN:-0}" = 1 ]   && DRY_RUN=1
+ACT=install
+DRY=0
+[ "${UNINSTALL:-0}" = 1 ] && ACT=uninstall
+[ "${DRY_RUN:-0}"   = 1 ] && DRY=1
 
-for _arg in "$@"; do
-    case "$_arg" in
+for a in "$@"; do
+    case "$a" in
         -h|--help)   usage; exit 0 ;;
-        --uninstall) ACTION=uninstall ;;
-        --dry-run)   DRY_RUN=1 ;;
-        *) err "unknown argument: $_arg" ;;
+        --uninstall) ACT=uninstall ;;
+        --dry-run)   DRY=1 ;;
+        *) err "unknown argument: $a" ;;
     esac
 done
 
-case "$ACTION" in
-    install)   do_install ;;
-    uninstall) do_uninstall ;;
+case "$ACT" in
+    install)   install_cli ;;
+    uninstall) uninstall_cli ;;
 esac
