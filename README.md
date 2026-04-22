@@ -7,11 +7,17 @@ Install-script proxy for [qntx](https://github.com/qntx) GitHub projects. Every 
 ## Usage
 
 ```sh
-# Unix / macOS
+# Install
 curl -fsSL https://sh.qntx.fun/<repo> | sh
-
-# Windows PowerShell
 irm https://sh.qntx.fun/<repo>/ps | iex
+
+# Uninstall
+curl -fsSL https://sh.qntx.fun/<repo> | sh -s -- --uninstall
+$env:UNINSTALL=1; irm https://sh.qntx.fun/<repo>/ps | iex
+
+# Preview without executing
+curl -fsSL https://sh.qntx.fun/<repo> | sh -s -- --dry-run
+$env:DRY_RUN=1; irm https://sh.qntx.fun/<repo>/ps | iex
 ```
 
 ### Routes
@@ -24,14 +30,18 @@ irm https://sh.qntx.fun/<repo>/ps | iex
 | `/{repo}/ps`   | `qntx/{repo}`, PowerShell                    |
 | `/labs/{repo}` | `qntx-labs/{repo}` (optionally suffix `/ps`) |
 
-### Runtime overrides
+### Configuration
 
-`<BIN>` is the uppercased binary name.
+`<BIN>` is the uppercased binary name (dashes → underscores).
 
-| Variable            | Purpose                                | Default                                                 |
-| ------------------- | -------------------------------------- | ------------------------------------------------------- |
-| `<BIN>_VERSION`     | Pin a specific version (no `v` prefix) | latest release                                          |
-| `<BIN>_INSTALL_DIR` | Install directory                      | `~/.local/bin` (Unix), `%LOCALAPPDATA%\<bin>` (Windows) |
+| Variable            | Purpose                                 | Default                                                 |
+| ------------------- | --------------------------------------- | ------------------------------------------------------- |
+| `<BIN>_VERSION`     | Pin a specific version (no `v` prefix)  | latest release                                          |
+| `<BIN>_INSTALL_DIR` | Install directory                       | `~/.local/bin` (Unix), `%LOCALAPPDATA%\<bin>` (Windows) |
+| `UNINSTALL=1`       | Remove the binary and its PATH entries  | —                                                       |
+| `DRY_RUN=1`         | Print planned actions without executing | —                                                       |
+| `HELP=1`            | Show installer usage and exit           | —                                                       |
+| `NO_COLOR`          | Disable colored output (Unix only)      | —                                                       |
 
 ```sh
 SKILLS_VERSION=0.1.0 sh -c "$(curl -fsSL https://sh.qntx.fun/skill)"
@@ -64,7 +74,20 @@ The default template expects each GitHub release to contain:
 - Unix: `<bin>-<version>-<target>.tar.gz`
 - Windows: `<bin>-<version>-<target>.zip`
 
-where `<target>` is a Rust target triple such as `x86_64-unknown-linux-gnu`, `aarch64-apple-darwin`, or `x86_64-pc-windows-msvc`. The archive root must contain the executable `<bin>` (`<bin>.exe` on Windows). This matches the default output of [`cargo-dist`](https://opensource.axo.dev/cargo-dist/) and `GoReleaser`.
+where `<target>` is a Rust target triple such as `x86_64-unknown-linux-gnu`, `aarch64-apple-darwin`, or `x86_64-pc-windows-msvc`. The archive root must contain the executable `<bin>` (`<bin>.exe` on Windows); an optional single top-level directory is tolerated. This matches the default output of [`cargo-dist`](https://opensource.axo.dev/cargo-dist/) and `GoReleaser`.
+
+### Template features
+
+The default `install.{sh,ps1}` ships with:
+
+- **SHA256 verification** against `<archive>.sha256` sidecar (warns and continues if absent)
+- **Network retry** with exponential backoff, up to 3 attempts
+- **Multi-shell PATH** — writes `.zshrc`, `.bashrc`, `.bash_profile`, `.profile`, and `~/.config/fish/conf.d/` when present
+- **musl detection** on Linux (picks `unknown-linux-musl` vs `unknown-linux-gnu`)
+- **Rosetta 2 override** on Apple Silicon
+- **`WM_SETTINGCHANGE` broadcast** on Windows via P/Invoke so new shells pick up PATH immediately
+- **GitHub Actions integration** — appends to `$GITHUB_PATH` when set
+- **Uninstall / dry-run / help** modes
 
 ## Development
 
@@ -90,7 +113,7 @@ The custom domain `sh.qntx.fun` is bound via Cloudflare Dashboard → Workers �
 | `404`  | Invalid path or upstream template missing              |
 | `405`  | Method other than `GET` / `HEAD`                       |
 | `500`  | Unexpected Worker error                                |
-| `502`  | Upstream GitHub failure or 10s timeout                 |
+| `502`  | Upstream failure, 10s timeout, or template unavailable |
 
 ---
 
