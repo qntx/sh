@@ -16,22 +16,22 @@ irm https://sh.qntx.fun/<repo>/ps | iex
 
 ### Routes
 
-| Path | Target |
-| --- | --- |
-| `/` | `qntx/machi`, shell |
-| `/ps` | `qntx/machi`, PowerShell |
-| `/{repo}` | `qntx/{repo}`, shell |
-| `/{repo}/ps` | `qntx/{repo}`, PowerShell |
+| Path           | Target                                       |
+| -------------- | -------------------------------------------- |
+| `/`            | `qntx/ovo`, shell                            |
+| `/ps`          | `qntx/ovo`, PowerShell                       |
+| `/{repo}`      | `qntx/{repo}`, shell                         |
+| `/{repo}/ps`   | `qntx/{repo}`, PowerShell                    |
 | `/labs/{repo}` | `qntx-labs/{repo}` (optionally suffix `/ps`) |
 
 ### Runtime overrides
 
 `<BIN>` is the uppercased binary name.
 
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `<BIN>_VERSION` | Pin a specific version (no `v` prefix) | latest release |
-| `<BIN>_INSTALL_DIR` | Install directory | `~/.local/bin` (Unix), `%LOCALAPPDATA%\<bin>` (Windows) |
+| Variable            | Purpose                                | Default                                                 |
+| ------------------- | -------------------------------------- | ------------------------------------------------------- |
+| `<BIN>_VERSION`     | Pin a specific version (no `v` prefix) | latest release                                          |
+| `<BIN>_INSTALL_DIR` | Install directory                      | `~/.local/bin` (Unix), `%LOCALAPPDATA%\<bin>` (Windows) |
 
 ```sh
 SKILLS_VERSION=0.1.0 sh -c "$(curl -fsSL https://sh.qntx.fun/skill)"
@@ -51,11 +51,11 @@ curl sh.qntx.fun/<repo>
 
 Each downstream repo adds **zero to two files** depending on customization:
 
-| Scenario | Files at repo root |
-| --- | --- |
-| `BIN` matches repo name, default template | *nothing* |
-| `BIN` differs from repo name | `install.bin` — single line, e.g. `skills` |
-| Completely custom installer | `install.sh` and/or `install.ps1` |
+| Scenario                                  | Files at repo root                         |
+| ----------------------------------------- | ------------------------------------------ |
+| `BIN` matches repo name, default template | *nothing*                                  |
+| `BIN` differs from repo name              | `install.bin` — single line, e.g. `skills` |
+| Completely custom installer               | `install.sh` and/or `install.ps1`          |
 
 ### Release artifact convention
 
@@ -77,20 +77,20 @@ The custom domain `sh.qntx.fun` is bound via Cloudflare Dashboard → Workers �
 
 ### What requires a redeploy
 
-| Change | Redeploy Worker? |
-| --- | --- |
-| Edit `install.sh` / `install.ps1` template | No — push to `main`; effective after edge cache expires (≤1h) or manual purge |
-| Edit `src/index.js` | Yes — `wrangler deploy` |
+| Change                                     | Redeploy Worker?                                   |
+| ------------------------------------------ | -------------------------------------------------- |
+| Edit `install.sh` / `install.ps1` template | No — push `main`; edge cache ≤1h (or manual purge) |
+| Edit `src/index.js`                        | Yes — `wrangler deploy`                            |
 
 ### HTTP semantics
 
-| Status | Cause |
-| --- | --- |
-| `200` | Script returned, `Cache-Control: public, max-age=3600` |
-| `404` | Invalid path or upstream template missing |
-| `405` | Method other than `GET` / `HEAD` |
-| `502` | Upstream GitHub failure or 10s timeout |
-| `500` | Unexpected Worker error |
+| Status | Cause                                                  |
+| ------ | ------------------------------------------------------ |
+| `200`  | Script returned, `Cache-Control: public, max-age=3600` |
+| `404`  | Invalid path or upstream template missing              |
+| `405`  | Method other than `GET` / `HEAD`                       |
+| `500`  | Unexpected Worker error                                |
+| `502`  | Upstream GitHub failure or 10s timeout                 |
 
 ---
 

@@ -74,7 +74,7 @@ async function rawFetch(path) {
       signal: ctrl.signal,
     });
   } catch (err) {
-    console.error("upstream fetch failed", path, err);
+    console.error("upstream fetch failed", { path, err });
     return new Response(null, { status: UPSTREAM_FAILURE_STATUS });
   } finally {
     clearTimeout(timer);
@@ -99,11 +99,21 @@ function textResponse(body, status, extra) {
   });
 }
 
-const notFound = () => textResponse("Not found\n", 404);
-const badGateway = () => textResponse("Upstream error\n", 502);
-const internalError = () => textResponse("Internal server error\n", 500);
-const methodNotAllowed = () =>
-  textResponse("Method not allowed\n", 405, { allow: "GET, HEAD" });
+function notFound() {
+  return textResponse("Not found\n", 404);
+}
+
+function badGateway() {
+  return textResponse("Upstream error\n", 502);
+}
+
+function internalError() {
+  return textResponse("Internal server error\n", 500);
+}
+
+function methodNotAllowed() {
+  return textResponse("Method not allowed\n", 405, { allow: "GET, HEAD" });
+}
 
 /**
  * Substitute template placeholders.
@@ -171,7 +181,7 @@ export default {
     try {
       return await handle(request);
     } catch (err) {
-      console.error("unhandled error", err);
+      console.error("unhandled error", { err });
       return internalError();
     }
   },
