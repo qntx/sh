@@ -70,7 +70,7 @@ async function rawFetch(path) {
   const timer = setTimeout(() => ctrl.abort(), UPSTREAM_TIMEOUT_MS);
   try {
     return await fetch(`${RAW_BASE}/${path}`, {
-      cf: { cacheTtl: CACHE_TTL, cacheEverything: true },
+      cf: { cacheTtl: CACHE_TTL },
       signal: ctrl.signal,
     });
   } catch (err) {
@@ -103,8 +103,8 @@ function notFound() {
   return textResponse("Not found\n", 404);
 }
 
-function badGateway() {
-  return textResponse("Upstream error\n", 502);
+function badGateway(reason = "Upstream error") {
+  return textResponse(`${reason}\n`, 502);
 }
 
 function internalError() {
@@ -145,6 +145,7 @@ async function resolveScript(route) {
     rawFetch(`${TEMPLATE_REPO}/main/install.${ext}`),
     isTemplate ? null : rawFetch(`${repoPath}/main/install.bin`),
   ]);
+  if (tmplResp.status === 404) return badGateway("Template unavailable");
   if (!tmplResp.ok) return badGateway();
 
   let bin = repo;
