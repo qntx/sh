@@ -141,6 +141,12 @@ function Install-Cli {
     try {
         $ap = Join-Path $tmp.FullName $archive
         $sp = "$ap.sha256"
+
+        # NOTE: $ProgressPreference is 'SilentlyContinue' globally because PS 5.1's
+        # Invoke-WebRequest progress bar is pathologically slow (every-byte host
+        # refresh). We compensate with explicit per-stage log lines so users can
+        # see what the installer is doing.
+        Write-Information "  downloading $archive"
         Invoke-Http -Uri $url -OutFile $ap
 
         try {
@@ -154,6 +160,7 @@ function Install-Cli {
             Write-Warning '  no published checksum, skipping verification'
         }
 
+        Write-Information '  extracting'
         Expand-Archive -LiteralPath $ap -DestinationPath $tmp.FullName -Force
         $src = Find-Bin -Root $tmp.FullName
         $null = New-Item -ItemType Directory -Force -Path $d
@@ -171,7 +178,7 @@ function Install-Cli {
         [IO.File]::AppendAllText(
             $env:GITHUB_PATH,
             "$d`r`n",
-            (New-Object System.Text.UTF8Encoding $false)
+            [Text.UTF8Encoding]::new($false)
         )
     }
     elseif (($env:Path -split ';') -notcontains $d) {

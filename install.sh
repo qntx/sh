@@ -148,6 +148,8 @@ install_cli() {
     fi
 
     tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+
+    say "  downloading $archive"
     http "$url" "$tmp/$archive" || err "failed to download $url"
 
     if http "$url.sha256" "$tmp/$archive.sha256" 1 2>/dev/null; then
@@ -159,6 +161,7 @@ install_cli() {
         warn "  no published checksum, skipping verification"
     fi
 
+    say "  extracting"
     tar xzf "$tmp/$archive" -C "$tmp"
     src=$(find_bin "$tmp")
 
