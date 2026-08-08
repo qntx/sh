@@ -77,7 +77,15 @@ async function rawFetch(path) {
   const timer = setTimeout(() => ctrl.abort(), UPSTREAM_TIMEOUT_MS);
   try {
     return await fetch(`${RAW_BASE}/${path}`, {
-      cf: { cacheTtl: CACHE_TTL },
+      cf: {
+        // Status-aware edge cache: keep successful raw files warm, short-circuit
+        // negative lookups briefly, never sticky-cache upstream failures.
+        cacheTtlByStatus: {
+          "200-299": CACHE_TTL,
+          "404": 60,
+          "500-599": 0,
+        },
+      },
       signal: ctrl.signal,
     });
   } catch (err) {
@@ -123,12 +131,12 @@ function methodNotAllowed() {
 }
 
 /**
- * Substitute template placeholders.
+ * Substitute template placeholders (order-safe: REPO first, then BIN).
  * @param {string} template
  * @param {{ repo: string, bin: string }} vars
  */
 function render(template, { repo, bin }) {
-  return template.replaceAll("__REPO__", repo).replaceAll("__BIN__", bin);
+  return template.split("__REPO__").join(repo).split("__BIN__").join(bin);
 }
 
 /**
@@ -155,7 +163,9 @@ async function resolveScript(route) {
   if (tmplResp.status === 404) return badGateway("Template unavailable");
   if (!tmplResp.ok) return badGateway();
 
-  let bin = repo;
+  // Prefer install.bin when present; otherwise default BIN to the repo name.
+  // Default must pass BIN_RE (repo names may contain '.' which BIN forbids).
+  let bin = null;
   if (binResp?.ok) {
     const trimmed = (await binResp.text()).trim();
     // Reject anything that could break the template or inject shell/PowerShell
@@ -167,6 +177,14 @@ async function resolveScript(route) {
     }
   } else if (binResp && binResp.status !== 404) {
     return badGateway();
+  }
+
+  if (bin === null) {
+    if (BIN_RE.test(repo)) {
+      bin = repo;
+    } else {
+      return badGateway("Invalid default BIN; add install.bin");
+    }
   }
 
   const body = render(await tmplResp.text(), { repo: repoPath, bin });
