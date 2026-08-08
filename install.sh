@@ -31,26 +31,35 @@ have() { command -v "$1" >/dev/null 2>&1; }
 
 # HTTP GET with 3 attempts and exponential backoff.
 # $1=url, $2=outfile (empty for stdout).
+#
+# IMPORTANT: use prefixed names (_http_*) — POSIX sh has no `local`, and
+# bare `d=1` here used to clobber install_cli's install-dir variable `d`,
+# installing into ./1/kobe and writing `export PATH="1:$PATH"` into rc files.
 http() {
-    url=$1 out=${2:-} i=1 d=1
+    _http_url=$1
+    _http_out=${2:-}
+    _http_i=1
+    _http_delay=1
     while :; do
         if have curl; then
-            if [ -n "$out" ]; then
-                curl -fsSL -A "$BIN-installer" -o "$out" "$url" && return 0
+            if [ -n "$_http_out" ]; then
+                curl -fsSL -A "$BIN-installer" -o "$_http_out" "$_http_url" && return 0
             else
-                curl -fsSL -A "$BIN-installer" "$url" && return 0
+                curl -fsSL -A "$BIN-installer" "$_http_url" && return 0
             fi
         elif have wget; then
-            if [ -n "$out" ]; then
-                wget -q --user-agent="$BIN-installer" -O "$out" "$url" && return 0
+            if [ -n "$_http_out" ]; then
+                wget -q --user-agent="$BIN-installer" -O "$_http_out" "$_http_url" && return 0
             else
-                wget -q --user-agent="$BIN-installer" -O- "$url" && return 0
+                wget -q --user-agent="$BIN-installer" -O- "$_http_url" && return 0
             fi
         else
             err "curl or wget is required"
         fi
-        [ "$i" -ge 3 ] && return 1
-        sleep "$d"; i=$((i + 1)); d=$((d * 2))
+        [ "$_http_i" -ge 3 ] && return 1
+        sleep "$_http_delay"
+        _http_i=$((_http_i + 1))
+        _http_delay=$((_http_delay * 2))
     done
 }
 
@@ -129,14 +138,17 @@ install_cli() {
     t=$(target)
     eval "v=\"\${${UP}_VERSION:-}\""
     [ -n "$v" ] || v=$(latest)
-    d=$(install_dir)
+    # Capture install dir AFTER any http() calls that might run later would
+    # historically clobber a short name like `d`; keep this assignment after
+    # latest() too (subshell-safe) and re-read after download for clarity.
+    install_root=$(install_dir)
     archive="$BIN-$v-$t.tar.gz"
     url="https://github.com/$REPO/releases/download/v$v/$archive"
 
     say "Installing $BIN v$v ($t)"
     if [ "$DRY" = 1 ]; then
         say "[dry-run] download: $url"
-        say "[dry-run] install:  $d/$BIN"
+        say "[dry-run] install:  $install_root/$BIN"
         return 0
     fi
 
@@ -145,22 +157,25 @@ install_cli() {
     say "  downloading $archive"
     http "$url" "$tmp/$archive" || err "failed to download $url"
 
+    # Re-resolve in case a future change calls helpers that touch globals.
+    install_root=$(install_dir)
+
     say "  extracting"
     tar xzf "$tmp/$archive" -C "$tmp"
     src=$(find_bin "$tmp")
 
-    mkdir -p "$d"
-    install -m 755 "$src" "$d/$BIN"
-    say "  installed $d/$BIN"
+    mkdir -p "$install_root"
+    install -m 755 "$src" "$install_root/$BIN"
+    say "  installed $install_root/$BIN"
 
-    add_path "$d"
+    add_path "$install_root"
     say ""
     say "$BIN v$v installed."
 }
 
 uninstall_cli() {
-    d=$(install_dir)
-    t="$d/$BIN"
+    install_root=$(install_dir)
+    t="$install_root/$BIN"
     if [ -f "$t" ]; then
         rm -f "$t"
         say "removed $t"
