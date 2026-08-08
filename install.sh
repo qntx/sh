@@ -9,8 +9,12 @@
 #
 # Environment (uppercased BIN, '-' -> '_'):
 #   <BIN>_VERSION      Pin a version (default: latest release)
-#   <BIN>_INSTALL_DIR  Install directory (default: $HOME/.local/bin)
+#   <BIN>_INSTALL_DIR  Install directory (default: $HOME/.local/bin; absolute, safe chars)
+#   UNINSTALL=1        Same as --uninstall
+#   DRY_RUN=1          Same as --dry-run (covers install and uninstall)
+#   HELP=1             Same as --help
 #   NO_COLOR           Disable color output
+#   GITHUB_PATH        If set (GitHub Actions), append install dir and skip shell rc PATH
 #
 # POSIX sh has no `local`. Every function MUST use unique prefixed names for
 # temporaries so helpers never clobber callers (historical bug: http() set
@@ -76,12 +80,12 @@ err()  { printf '%serror%s: %s\n' "$R" "$N" "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
 # True if $1 looks like a safe release version (no path / shell metacharacters).
-# Accepts: 1.2.3, 1.2.3-beta.1, v1.2.3 (caller strips v).
+# Accepts: 1, 1.2.3, 1.2.3-beta.1 (caller strips leading v).
 version_ok() {
     # shellcheck disable=SC2254
     case "$1" in
         '' | *[' /\\'!@#$%^\&*\(\)+=\[\]\{\}\;\:\'\"\\\|\,\?\*]* | *..* ) return 1 ;;
-        [0-9]*[0-9A-Za-z._-]* ) return 0 ;;
+        [0-9] | [0-9][0-9A-Za-z._-]* ) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -92,6 +96,23 @@ absolute_path() {
         /*) return 0 ;;
         *) return 1 ;;
     esac
+}
+
+# True if $1 is safe to embed in shell rc / fish conf (reject injection vectors).
+# Absolute, no "..", no "//", only [A-Za-z0-9/._+-].
+path_safe() {
+    case "$1" in
+        /*) ;;
+        *) return 1 ;;
+    esac
+    case "$1" in
+        *//* | *..* ) return 1 ;;
+    esac
+    # shellcheck disable=SC2254
+    case "$1" in
+        *[!A-Za-z0-9/._+-]* ) return 1 ;;
+    esac
+    return 0
 }
 
 # HTTP GET with 3 attempts and exponential backoff.
@@ -183,6 +204,11 @@ find_bin() {
     _fb_hit=$(find "$_fb_root" -maxdepth 3 -type f -name "$BIN" 2>/dev/null | head -n 1)
     [ -n "$_fb_hit" ] || err "binary '$BIN' not found in archive"
     [ -f "$_fb_hit" ] || err "binary path is not a regular file: $_fb_hit"
+    case "$_fb_hit" in
+        *..*) err "binary path must not contain ..: $_fb_hit" ;;
+        "$_fb_root"/*) ;;
+        *) err "binary path escapes extract root: $_fb_hit" ;;
+    esac
     printf '%s\n' "$_fb_hit"
 }
 
@@ -201,7 +227,7 @@ install_bin() {
 # Append absolute $1 to shell rc PATH entries when missing.
 add_path() {
     _ap_dir=$1
-    absolute_path "$_ap_dir" || err "refusing relative PATH entry: $_ap_dir"
+    path_safe "$_ap_dir" || err "refusing unsafe PATH entry: $_ap_dir"
     case ":$PATH:" in
         *":$_ap_dir:"*) return 0 ;;
     esac
@@ -217,9 +243,11 @@ add_path() {
     if [ -d "$HOME/.config/fish" ]; then
         _ap_touched=1
         _ap_fc="$HOME/.config/fish/conf.d/$BIN-path.fish"
+        # path_safe already validated $_ap_dir for shell embedding.
+        _ap_fish_line=$(printf "fish_add_path -g '%s'" "$_ap_dir")
         mkdir -p "$(dirname "$_ap_fc")"
-        if [ ! -f "$_ap_fc" ] || ! grep -qF "$_ap_dir" "$_ap_fc"; then
-            printf "fish_add_path -g '%s'\n" "$_ap_dir" >"$_ap_fc"
+        if [ ! -f "$_ap_fc" ] || ! grep -qF -- "$_ap_fish_line" "$_ap_fc" 2>/dev/null; then
+            printf '%s\n' "$_ap_fish_line" >"$_ap_fc"
             say "  added PATH entry to ~/.config/fish/conf.d/$BIN-path.fish"
         fi
     fi
@@ -230,7 +258,7 @@ add_path() {
     say "  restart your shell to apply"
 }
 
-# Resolve install directory: env override or $HOME/.local/bin. Must be absolute.
+# Resolve install directory: env override or $HOME/.local/bin. Must be absolute + path_safe.
 install_dir() {
     # Safely expand ${UP}_INSTALL_DIR without allowing command injection in UP
     # (UP is derived from validated BIN).
@@ -239,14 +267,13 @@ install_dir() {
         _id_val="$HOME/.local/bin"
     fi
     absolute_path "$_id_val" || err "${UP}_INSTALL_DIR must be an absolute path, got: $_id_val"
-    # Reject empty path segments / traversal that absolute_path alone allows.
-    case "$_id_val" in
-        *'..'* ) err "install dir must not contain ..: $_id_val" ;;
-    esac
+    path_safe "$_id_val" || err "${UP}_INSTALL_DIR has unsafe characters (allowed: A-Za-z0-9/._+-): $_id_val"
     printf '%s\n' "$_id_val"
 }
 
 install_cli() {
+    # Validate install dir before any network I/O so bad *_INSTALL_DIR fails fast.
+    _ic_root=$(install_dir)
     _ic_target=$(target)
     eval "_ic_ver=\"\${${UP}_VERSION:-}\""
     if [ -z "$_ic_ver" ]; then
@@ -255,7 +282,6 @@ install_cli() {
         _ic_ver=${_ic_ver#v}
         version_ok "$_ic_ver" || err "refusing unsafe ${UP}_VERSION: $_ic_ver"
     fi
-    _ic_root=$(install_dir)
     _ic_archive="$BIN-$_ic_ver-$_ic_target.tar.gz"
     _ic_url="https://github.com/$REPO/releases/download/v$_ic_ver/$_ic_archive"
 
@@ -284,7 +310,12 @@ install_cli() {
     install_bin "$_ic_src" "$_ic_root/$BIN"
     say "  installed $_ic_root/$BIN"
 
-    add_path "$_ic_root"
+    if [ -n "${GITHUB_PATH:-}" ]; then
+        printf '%s\n' "$_ic_root" >>"$GITHUB_PATH"
+        say "  appended $_ic_root to GITHUB_PATH"
+    else
+        add_path "$_ic_root"
+    fi
     say ""
     say "$BIN v$_ic_ver installed."
 
@@ -296,13 +327,19 @@ install_cli() {
 uninstall_cli() {
     _uc_root=$(install_dir)
     _uc_path="$_uc_root/$BIN"
+    _uc_fc="$HOME/.config/fish/conf.d/$BIN-path.fish"
+    if [ "$DRY" = 1 ]; then
+        say "[dry-run] remove: $_uc_path"
+        [ -f "$_uc_fc" ] && say "[dry-run] remove: $_uc_fc"
+        say "[dry-run] note: shell rc PATH entries would be left in place"
+        return 0
+    fi
     if [ -f "$_uc_path" ]; then
         rm -f "$_uc_path"
         say "removed $_uc_path"
     else
         say "$_uc_path not found"
     fi
-    _uc_fc="$HOME/.config/fish/conf.d/$BIN-path.fish"
     if [ -f "$_uc_fc" ]; then
         rm -f "$_uc_fc"
         say "removed $_uc_fc"
@@ -322,8 +359,12 @@ Usage:
 
 Environment:
   ${UP}_VERSION       Pin a version (default: latest)
-  ${UP}_INSTALL_DIR   Install directory (default: \$HOME/.local/bin; must be absolute)
+  ${UP}_INSTALL_DIR   Install directory (default: \$HOME/.local/bin; absolute, safe chars)
+  UNINSTALL=1         Same as --uninstall
+  DRY_RUN=1           Same as --dry-run (install and uninstall)
+  HELP=1              Same as --help
   NO_COLOR            Disable color output
+  GITHUB_PATH         If set, append install dir (GitHub Actions) instead of shell rc
 EOF
 }
 
@@ -331,6 +372,7 @@ ACT=install
 DRY=0
 [ "${UNINSTALL:-0}" = 1 ] && ACT=uninstall
 [ "${DRY_RUN:-0}" = 1 ] && DRY=1
+[ "${HELP:-0}" = 1 ] && { usage; exit 0; }
 
 for _arg in "$@"; do
     case "$_arg" in

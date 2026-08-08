@@ -102,11 +102,31 @@ function Get-Latest {
 function Find-Bin {
     param([string]$Root)
     $exe = "$Bin.exe"
+    $rootFull = [IO.Path]::GetFullPath($Root).TrimEnd('\', '/')
+    $rootPrefix = $rootFull + [IO.Path]::DirectorySeparatorChar
+    $assertUnderRoot = {
+        param([string]$Full)
+        if ($Full -match '(^|[\\/])\.\.([\\/]|$)') {
+            throw "binary path must not contain ..: $Full"
+        }
+        if (-not (
+                $Full.Equals($rootFull, [StringComparison]::OrdinalIgnoreCase) -or
+                $Full.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)
+            )) {
+            throw "binary path escapes extract root: $Full"
+        }
+    }
     $p = Join-Path $Root $exe
-    if (Test-Path -LiteralPath $p -PathType Leaf) { return $p }
+    if (Test-Path -LiteralPath $p -PathType Leaf) {
+        $full = [IO.Path]::GetFullPath($p)
+        & $assertUnderRoot $full
+        return $full
+    }
     $f = Get-ChildItem -LiteralPath $Root -Recurse -Filter $exe -File -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $f) { throw "binary '$exe' not found in archive" }
-    $f.FullName
+    $full = [IO.Path]::GetFullPath($f.FullName)
+    & $assertUnderRoot $full
+    $full
 }
 
 # Broadcast WM_SETTINGCHANGE via P/Invoke so new shells see the PATH change.
@@ -153,17 +173,22 @@ function Get-Dir {
     if ($v -match '\.\.') {
         throw "install dir must not contain ..: $v"
     }
+    # Reject control characters (parity with Unix path_safe intent).
+    if ($v -match '[\x00-\x1F]') {
+        throw "${Up}_INSTALL_DIR must not contain control characters"
+    }
     $v
 }
 
 function Install-Cli {
     param([switch]$DryRun)
+    # Validate install dir before any network I/O so bad *_INSTALL_DIR fails fast.
+    $d = Get-Dir
     $t = Get-Target
     $v = [Environment]::GetEnvironmentVariable("${Up}_VERSION")
     if (-not $v) { $v = Get-Latest }
     $v = $v -replace '^v', ''
     if (-not (Test-SafeVersion $v)) { throw "refusing unsafe version: $v" }
-    $d = Get-Dir
     $archive = "$Bin-$v-$t.zip"
     $url = "https://github.com/$Repo/releases/download/v$v/$archive"
 
@@ -215,8 +240,14 @@ function Install-Cli {
 }
 
 function Uninstall-Cli {
+    param([switch]$DryRun)
     $d = Get-Dir
     $t = Join-Path $d "$Bin.exe"
+    if ($DryRun) {
+        Write-Information "[dry-run] remove: $t"
+        Write-Information "[dry-run] PATH: remove $d from user PATH only if install dir is empty afterward"
+        return
+    }
     if (Test-Path -LiteralPath $t -PathType Leaf) {
         Remove-Item -LiteralPath $t -Force
         Write-Information "removed $t"
@@ -224,7 +255,17 @@ function Uninstall-Cli {
     else {
         Write-Information "$t not found"
     }
-    Edit-UserPath -Dir $d -Remove
+    # Avoid stripping a shared install dir from PATH while other tools remain.
+    $remaining = @()
+    if (Test-Path -LiteralPath $d -PathType Container) {
+        $remaining = @(Get-ChildItem -LiteralPath $d -Force -ErrorAction SilentlyContinue)
+    }
+    if ($remaining.Count -eq 0) {
+        Edit-UserPath -Dir $d -Remove
+    }
+    else {
+        Write-Information "  install dir not empty; left PATH entry for $d"
+    }
 }
 
 function Show-Usage {
@@ -250,7 +291,10 @@ function Test-Flag([string]$v) { $v -eq '1' }
 
 try {
     if (Test-Flag $env:HELP) { Show-Usage; return }
-    if (Test-Flag $env:UNINSTALL) { Uninstall-Cli; return }
+    if (Test-Flag $env:UNINSTALL) {
+        Uninstall-Cli -DryRun:(Test-Flag $env:DRY_RUN)
+        return
+    }
     Install-Cli -DryRun:(Test-Flag $env:DRY_RUN)
 }
 catch {
