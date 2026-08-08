@@ -28,6 +28,30 @@ $Repo = '__REPO__'
 $Bin = '__BIN__'
 $Up = ($Bin -replace '-', '_').ToUpper()
 
+# Refuse un-substituted templates / unsafe identifiers (parity with install.sh).
+# Split placeholder tokens so template substitution does not rewrite the check.
+$phRepo = '__' + 'REPO' + '__'
+$phBin = '__' + 'BIN' + '__'
+if ($Repo -eq $phRepo -or [string]::IsNullOrWhiteSpace($Repo)) {
+    throw 'REPO template not substituted'
+}
+if ($Repo -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
+    throw "invalid REPO (want org/name): $Repo"
+}
+if ($Bin -eq $phBin -or [string]::IsNullOrWhiteSpace($Bin)) {
+    throw 'BIN template not substituted'
+}
+if ($Bin -notmatch '^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?$') {
+    throw "invalid BIN: $Bin"
+}
+
+function Test-SafeVersion([string]$v) {
+    # Align with install.sh version_ok: digits first, no path/shell metacharacters.
+    if ([string]::IsNullOrWhiteSpace($v)) { return $false }
+    if ($v -match '[/\\]|[.]{2}|[\s!@#\$%\^&\*\(\)\+=\[\]\{\};:''",\?\*\|]') { return $false }
+    return $v -match '^[0-9][0-9A-Za-z._-]*$'
+}
+
 function Get-Target {
     # Avoid [RuntimeInformation]::OSArchitecture: it requires .NET Framework
     # 4.7.1+ which is missing on older Windows (e.g. Win10 <1709, Server 2012 R2)
@@ -69,7 +93,9 @@ function Invoke-Http {
 function Get-Latest {
     $tag = (Invoke-Http -Uri "https://api.github.com/repos/$Repo/releases/latest").tag_name
     if (-not $tag) { throw 'failed to detect latest version' }
-    $tag -replace '^v', ''
+    $ver = $tag -replace '^v', ''
+    if (-not (Test-SafeVersion $ver)) { throw "refusing unsafe version from GitHub: $ver" }
+    $ver
 }
 
 # Locate $Bin.exe in an extracted archive, tolerating an optional top-level folder.
@@ -118,7 +144,16 @@ function Edit-UserPath {
 
 function Get-Dir {
     $v = [Environment]::GetEnvironmentVariable("${Up}_INSTALL_DIR")
-    if ($v) { $v } else { Join-Path $env:LOCALAPPDATA $Bin }
+    if (-not $v) { $v = Join-Path $env:LOCALAPPDATA $Bin }
+    # Require rooted path so we never install relative to the caller's CWD
+    # (Unix counterpart: absolute_path check → historical PATH="1:..." bug).
+    if (-not [IO.Path]::IsPathRooted($v)) {
+        throw "${Up}_INSTALL_DIR must be an absolute path, got: $v"
+    }
+    if ($v -match '\.\.') {
+        throw "install dir must not contain ..: $v"
+    }
+    $v
 }
 
 function Install-Cli {
@@ -126,6 +161,8 @@ function Install-Cli {
     $t = Get-Target
     $v = [Environment]::GetEnvironmentVariable("${Up}_VERSION")
     if (-not $v) { $v = Get-Latest }
+    $v = $v -replace '^v', ''
+    if (-not (Test-SafeVersion $v)) { throw "refusing unsafe version: $v" }
     $d = Get-Dir
     $archive = "$Bin-$v-$t.zip"
     $url = "https://github.com/$Repo/releases/download/v$v/$archive"

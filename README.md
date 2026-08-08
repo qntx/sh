@@ -82,6 +82,9 @@ The default `install.{sh,ps1}` ships with:
 
 - **Network retry** with exponential backoff, up to 3 attempts
 - **Multi-shell PATH** — writes `.zshrc`, `.bashrc`, `.bash_profile`, `.profile`, and `~/.config/fish/conf.d/` when present
+- **Absolute install dir only** — relative `<BIN>_INSTALL_DIR` is rejected (avoids CWD-dependent installs and `PATH="1:..."`-style corruption)
+- **POSIX sh isolation** — installer helpers use prefixed names (no `local`); never clobber the install-dir variable
+- **Input validation** — `REPO` / `BIN` / version strings must be safe identifiers
 - **musl detection** on Linux (picks `unknown-linux-musl` vs `unknown-linux-gnu`)
 - **Rosetta 2 override** on Apple Silicon
 - **`WM_SETTINGCHANGE` broadcast** on Windows via P/Invoke so new shells pick up PATH immediately
