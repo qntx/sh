@@ -2,22 +2,22 @@
 
 # sh
 
-Install-script proxy for [qntx](https://github.com/qntx) GitHub projects. Every repo gets a `curl | sh` endpoint with zero per-repo boilerplate. Deployed at **[sh.qntx.fun](https://sh.qntx.fun)** as a Cloudflare Worker.
+Install-script proxy for [qntx](https://github.com/qntx) GitHub projects. Every repo gets a `curl | sh` endpoint with zero per-repo boilerplate. Deployed at **[sh.qntx.org](https://sh.qntx.org)** as a Cloudflare Worker.
 
 ## Usage
 
 ```sh
 # Install
-curl -fsSL https://sh.qntx.fun/<repo> | sh
-irm https://sh.qntx.fun/<repo>/ps | iex
+curl -fsSL https://sh.qntx.org/<repo> | sh
+irm https://sh.qntx.org/<repo>/ps | iex
 
 # Uninstall
-curl -fsSL https://sh.qntx.fun/<repo> | sh -s -- --uninstall
-$env:UNINSTALL=1; irm https://sh.qntx.fun/<repo>/ps | iex
+curl -fsSL https://sh.qntx.org/<repo> | sh -s -- --uninstall
+$env:UNINSTALL=1; irm https://sh.qntx.org/<repo>/ps | iex
 
 # Preview without mutating disk / PATH (may still call GitHub API for latest version)
-curl -fsSL https://sh.qntx.fun/<repo> | sh -s -- --dry-run
-$env:DRY_RUN=1; irm https://sh.qntx.fun/<repo>/ps | iex
+curl -fsSL https://sh.qntx.org/<repo> | sh -s -- --dry-run
+$env:DRY_RUN=1; irm https://sh.qntx.org/<repo>/ps | iex
 ```
 
 ### Routes
@@ -52,13 +52,13 @@ A trailing path segment `ps` always selects the PowerShell installer (including 
 - **Windows:** deletes the binary; removes the install directory from the user `PATH` only when that directory is empty afterward (shared install dirs keep their PATH entry).
 
 ```sh
-SKILLS_VERSION=0.1.0 sh -c "$(curl -fsSL https://sh.qntx.fun/skill)"
+SKILLS_VERSION=0.1.0 sh -c "$(curl -fsSL https://sh.qntx.org/skill)"
 ```
 
 ## How it works
 
 ```text
-curl sh.qntx.fun/<repo>
+curl sh.qntx.org/<repo>
  └─ GET raw/<org>/<repo>/main/install.{sh,ps1}
      ├─ 200 → serve verbatim (repo fully controls its installer)
      └─ 404 ↓
@@ -108,7 +108,7 @@ wrangler dev      # local preview at http://localhost:8787
 wrangler deploy   # ship to Cloudflare
 ```
 
-The custom domain `sh.qntx.fun` is bound via Cloudflare Dashboard → Workers → Custom Domains.
+The custom domain `sh.qntx.org` is bound via Cloudflare Dashboard → Workers → Custom Domains.
 
 ### What requires a redeploy
 
@@ -133,9 +133,9 @@ Upstream fetches use status-aware edge TTLs: successful responses ~1h, `404` ~60
 
 <div align="center">
 
-A **[QuantX](https://qntx.fun)** open-source project.
+A **[QuantX](https://qntx.org)** open-source project.
 
-<a href="https://qntx.fun"><img alt="QuantX" width="369" src="https://raw.githubusercontent.com/qntx/.github/main/profile/qntx.svg" /></a>
+<a href="https://qntx.org"><img alt="QuantX" width="369" src="https://raw.githubusercontent.com/qntx/.github/main/profile/qntx.svg" /></a>
 
 Code is law. We write both.
 
