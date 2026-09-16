@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installer for a GitHub-hosted CLI, served via sh.qntx.fun.
+# Installer for a GitHub-hosted CLI, served via sh.qntx.org.
 #
 # Usage:
 #   curl -fsSL <url> | sh                            # install

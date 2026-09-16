@@ -1,5 +1,5 @@
 // Cloudflare Worker: install-script proxy for qntx GitHub projects.
-// Domain: sh.qntx.fun
+// Domain: sh.qntx.org
 //
 // Routes:
 //   /            → install.sh   (default repo: ovo)
@@ -14,9 +14,9 @@
 //      `install.bin` at the repo root.
 //
 // Examples:
-//   curl -fsSL https://sh.qntx.fun | sh
-//   curl -fsSL https://sh.qntx.fun/xmtp | sh
-//   irm  https://sh.qntx.fun/xmtp/ps | iex
+//   curl -fsSL https://sh.qntx.org | sh
+//   curl -fsSL https://sh.qntx.org/xmtp | sh
+//   irm  https://sh.qntx.org/xmtp/ps | iex
 
 const ORGS = Object.freeze({ labs: "qntx-labs" });
 const DEFAULT_ORG = "qntx";
