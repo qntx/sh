@@ -48,16 +48,23 @@ cd apps/sh && bun run sync          # SYNC_TOOL=<key> SYNC_FORCE=true
 cd apps/sk && bun run sync          # SYNC_SOURCE=<repo>
 ```
 
-Preview a deploy (no traffic switch):
+Preview a deploy (no traffic switch) from an app dir:
 
 ```bash
-cd apps/sh && npx wrangler versions upload
+cd apps/sh && bunx wrangler versions upload
 ```
 
 ## Deploy
 
-`sh.qntx.org` is deployed from `main` via Cloudflare Workers static
-assets; `bun run build` must be green before deploy.
+Production deploys happen only through the `Deploy` workflow
+(`.github/workflows/deploy.yml`): it runs on successful `CI` runs for
+pushes to `main`, after `sync` commits a lock update (via
+`workflow_call`), and on `workflow_dispatch`. It builds `apps/` and runs
+`bunx wrangler deploy` in each app, applying each `wrangler.jsonc`'s
+routes/custom domains declaratively. Required configuration:
+
+- secret `CLOUDFLARE_API_TOKEN`
+- repository variable `CLOUDFLARE_ACCOUNT_ID`
 
 ## Commits
 

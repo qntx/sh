@@ -11,6 +11,7 @@ authors.workspace      = true
 keywords.workspace     = true
 categories.workspace   = true
 readme                 = "README.md"
+documentation          = "https://docs.rs/upg"
 
 [features]
 default = []
@@ -22,6 +23,9 @@ serde.workspace      = true
 serde_json.workspace = true
 thiserror.workspace  = true
 clap                 = { workspace = true, optional = true }
+
+[package.metadata.docs.rs]
+all-features = true
 
 [lints]
 workspace = true

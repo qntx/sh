@@ -1,0 +1,80 @@
+name: Deploy
+
+on:
+  # zizmor:ignore[dangerous-triggers] workflow_run is restricted by the job
+  # `if` to push events from this repository with success conclusions only;
+  # the checked-out ref is the same-repo push head_sha, never fork content.
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit SHA to deploy (the push sync just made)
+        required: false
+        type: string
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # workflow_run payloads carry refs from another run's context. We only
+    # accept runs triggered by a push to THIS repository's main (never a
+    # fork or a different event), and the successful conclusion only.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Inside a called workflow github.event_name is the caller's event, so
+          # the sync handoff is recognised by its explicit ref input.
+          ref: ${{ inputs.ref || (github.event_name == 'workflow_run' && github.event.workflow_run.head_sha) || github.sha }}
+
+      - name: Verify Cloudflare credentials are configured
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo '::error::secret CLOUDFLARE_API_TOKEN is not set'
+            exit 1
+          fi
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo '::error::variable CLOUDFLARE_ACCOUNT_ID is not set'
+            exit 1
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4"
+
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+
+      - name: Deploy sh.qntx.org
+        working-directory: apps/sh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: bunx wrangler deploy
+
+      - name: Deploy sk.qntx.org
+        working-directory: apps/sk
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: bunx wrangler deploy
