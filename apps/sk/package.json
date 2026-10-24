@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@qntx/sync": "workspace:*",
-    "yaml": "2.8.2"
+    "yaml": "2.9.1"
   },
   "devDependencies": {
     "@qntx/tsconfig": "1.0.1",
