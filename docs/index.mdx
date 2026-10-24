@@ -1,6 +1,14 @@
 ---
-title: sh
-description: Documentation stub.
+title: sh.qntx.org
+description: Static install-script service for QuantX command-line tools.
 ---
 
-Documentation stub.
+sh.qntx.org serves pinned, SHA-256-verified install scripts for QuantX CLIs.
+It is a build-time-rendered static site: a human-maintained catalog plus a
+machine-maintained release lock produce one script per tool; the runtime
+serves static files only — no code, no GitHub API calls.
+
+Tools: `bcur`, `bux`, `h2m`, `kobe`, `ks`, `lifiswap`, `meme`, `nosfry`,
+`pun`, `siwx`, `skills`, `xmtp`. Every script is locked to the newest stable
+`vX.Y.Z` release tag of its repository, with each platform's SHA-256 embedded.
+See [Install](/docs/sh/install) and [Protocol](/docs/sh/protocol).

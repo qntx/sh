@@ -1,0 +1,28 @@
+---
+title: Install
+description: Install QuantX command-line tools via sh.qntx.org.
+---
+
+```bash
+curl -fsSL https://sh.qntx.org/kobe | sh
+```
+
+```powershell
+irm https://sh.qntx.org/kobe/ps | iex
+```
+
+Pin a version or pass options after `--`:
+
+```bash
+curl -fsSL https://sh.qntx.org/kobe | sh -s -- --version 6.0.0 --no-modify-path
+```
+
+```powershell
+& ([scriptblock]::Create((irm https://sh.qntx.org/kobe/ps))) -Version 6.0.0 -NoModifyPath
+```
+
+Every download is verified against a SHA-256 embedded in the served script
+for the locked latest version (or the release's own `.sha256` file for a
+pinned `--version`), self-checked (`<bin> --version` must report the target
+version before anything is replaced), and installed atomically. Replace
+`kobe` with any tool name listed on the index page.

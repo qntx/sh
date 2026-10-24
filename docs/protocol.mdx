@@ -1,0 +1,51 @@
+---
+title: Protocol
+description: The stable sh.qntx.org installer contract — flags, exit codes, receipts, trust model.
+---
+
+The contract is additive-only: option names, environment variables, exit
+codes and the receipt format never change incompatibly.
+
+| sh option             | PowerShell      | Environment                     | Meaning                                                            |
+| --------------------- | --------------- | ------------------------------- | ------------------------------------------------------------------ |
+| `--version <x.y.z>`   | `-Version`      | `&lt;TOOL&gt;_VERSION`          | Install that version; default is the locked latest                 |
+| `--install-dir <dir>` | `-InstallDir`   | `&lt;TOOL&gt;_INSTALL_DIR`      | Absolute path; default `~/.local/bin` (`%USERPROFILE%\.local\bin`) |
+| `--no-modify-path`    | `-NoModifyPath` | `&lt;TOOL&gt;_NO_MODIFY_PATH=1` | Do not edit PATH                                                   |
+| `--force`             | `-Force`        | —                               | Reinstall even when up to date                                     |
+| `--check`             | `-Check`        | —                               | Print the target version, no network, no writes                    |
+| `--uninstall`         | `-Uninstall`    | —                               | Remove binary, receipt and PATH entry                              |
+| `--dry-run`           | `-DryRun`       | —                               | Print planned actions only                                         |
+| `--quiet`             | `-Quiet`        | —                               | Errors only                                                        |
+| `--help`              | `-Help`         | —                               | Usage                                                              |
+
+Exit codes: `0` success (including "up to date"), `1` failure, `2` bad
+arguments, `3` unsupported platform.
+
+The PowerShell installer never calls `exit` — that would kill the user's
+shell under `irm … | iex`. It writes `error: …` to stderr and sets
+`$LASTEXITCODE` instead, so programmatic callers that need a real process
+code must propagate it:
+
+```powershell
+powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create((irm https://sh.qntx.org/kobe/ps))) -Quiet; exit $LASTEXITCODE"
+```
+
+Uninstall removes the binary only when a receipt exists and its
+`install_dir` matches the resolved install directory; otherwise it reports
+`error: not installed by sh.qntx.org at <dir>` and exits 1 without deleting
+anything. The PATH entry (or fish file) is removed only when no other
+receipts remain.
+
+Receipts: `~/.config/qntx/receipts/<tool>.json` on Unix,
+`%LOCALAPPDATA%\qntx\receipts\<tool>.json` on Windows:
+
+```json
+{ "schema": 1, "tool": "kobe", "version": "6.0.0", "install_dir": "/home/x/.local/bin" }
+```
+
+Trust model: every byte served corresponds to a commit in the public
+qntx/sh repository. For the locked latest version the expected SHA-256 comes
+from sh.qntx.org (reviewed git history) while the archive comes from GitHub —
+two sources cross-checked. Repositories with GitHub immutable releases are
+recorded in the lock. Verify an asset independently with
+`gh release verify-asset v6.0.0 kobe-6.0.0-aarch64-apple-darwin.tar.gz -R qntx/kobe`.

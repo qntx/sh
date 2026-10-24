@@ -1,0 +1,302 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SHFMT_VERSION: "3.14.1"
+  # sha256 of https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_amd64
+  SHFMT_SHA256: "76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf"
+
+jobs:
+  ci:
+    uses: qntx/workflows/.github/workflows/ci-bun.yml@v2
+    permissions:
+      contents: read
+
+  shell:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4"
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Install shellcheck and shfmt
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends shellcheck busybox-static
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          curl -fsSL -o "$tmp/shfmt" \
+            "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64"
+          echo "${SHFMT_SHA256}  $tmp/shfmt" | sha256sum -c
+          sudo install -m 0755 "$tmp/shfmt" /usr/local/bin/shfmt
+      - name: Lint scripts
+        run: |
+          set -euo pipefail
+          # bux ships a sha-locked upstream installer (tools/bux/): check it
+          # for errors only; style findings belong to the upstream repo.
+          for f in dist/*.sh; do
+            if [ "$f" != dist/bux.sh ]; then
+              shellcheck -s sh "$f"
+            fi
+          done
+          shellcheck -s sh -S error tools/bux/install.sh dist/bux.sh
+          for f in dist/*.sh; do
+            if [ "$f" != dist/bux.sh ]; then
+              shfmt -i 4 -ci -d "$f"
+            fi
+          done
+      - name: Smoke scripts under POSIX shells
+        run: |
+          set -euo pipefail
+          for sh in dash 'bash --posix' 'busybox sh'; do
+            $sh dist/kobe.sh --help >/dev/null
+            $sh dist/kobe.sh --check >/dev/null
+            $sh dist/kobe.sh --dry-run >/dev/null 2>&1 || true
+            # index exits 1 by design (S1).
+            for a in --help --check --dry-run; do
+              if $sh dist/index.sh $a >/dev/null 2>&1; then
+                echo "::error::index.sh $a under $sh exited 0"; exit 1
+              fi
+            done
+          done
+
+  powershell:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4"
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Force -Scope CurrentUser
+          $r = Invoke-ScriptAnalyzer -Path dist/*.ps1 -Severity Warning,Error
+          $r | Format-Table -AutoSize
+          if ($r) { exit 1 }
+
+  e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            shell: bash
+          - os: macos-latest
+            shell: bash
+          # Run the whole Windows case list under both PowerShell 7 and the
+          # default Windows PowerShell 5.1 that `irm | iex` targets.
+          - os: windows-2022
+            shell: pwsh
+          - os: windows-2022
+            shell: powershell
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4"
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Unix e2e
+        if: matrix.shell == 'bash'
+        shell: bash
+        run: |
+          set -euo pipefail
+          d="$(mktemp -d)"
+          v="$(sh dist/kobe.sh --check)"
+          echo "locked version: $v"
+          zeros="$(printf '0%.0s' $(seq 64))"
+
+          # Fresh install
+          sh dist/kobe.sh --install-dir "$d" --no-modify-path --quiet
+          test -x "$d/kobe"
+          "$d/kobe" --version | grep -q "$v"
+          grep -qF "\"version\":\"$v\"" "$HOME/.config/qntx/receipts/kobe.json"
+
+          # Idempotent rerun (no re-download), then --force reinstall
+          sh dist/kobe.sh --install-dir "$d" --no-modify-path --quiet
+          sh dist/kobe.sh --install-dir "$d" --no-modify-path --quiet --force
+
+          # Pin the previous release
+          sh dist/kobe.sh --install-dir "$d" --no-modify-path --quiet --version 5.0.0
+          "$d/kobe" --version | grep -q '5.0.0'
+
+          # Running-binary replacement: `kobe evm -m -` blocks reading a
+          # mnemonic line from stdin while the FIFO stays held open.
+          mkfifo "$d/fifo"
+          ( exec 3<>"$d/fifo"; "$d/kobe" evm -m - <&3 >/dev/null 2>&1 ) &
+          pid=$!
+          sleep 1
+          sh dist/kobe.sh --install-dir "$d" --no-modify-path --quiet --force
+          test -x "$d/kobe"
+          kill "$pid" 2>/dev/null || true
+
+          # Tamper: corrupt every embedded hash; install dir + receipt unchanged.
+          bin_sha="$(shasum -a 256 "$d/kobe" | cut -d' ' -f1)"
+          rcpt_sha="$(shasum -a 256 "$HOME/.config/qntx/receipts/kobe.json" | cut -d' ' -f1)"
+          sed -E "s/'[0-9a-f]{64}'/'$zeros'/g" dist/kobe.sh > "$d/bad.sh"
+          if sh "$d/bad.sh" --install-dir "$d" --no-modify-path --quiet --force; then
+            echo '::error::tampered script installed'; exit 1
+          fi
+          [ "$(shasum -a 256 "$d/kobe" | cut -d' ' -f1)" = "$bin_sha" ]
+          [ "$(shasum -a 256 "$HOME/.config/qntx/receipts/kobe.json" | cut -d' ' -f1)" = "$rcpt_sha" ]
+
+          # Uninstall removes binary and receipt
+          sh dist/kobe.sh --install-dir "$d" --no-modify-path --quiet --uninstall
+          test ! -e "$d/kobe"
+          test ! -e "$HOME/.config/qntx/receipts/kobe.json"
+      - name: Windows e2e (PowerShell 7)
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: |
+          $d = Join-Path $env:TEMP ('sh-e2e-' + [Guid]::NewGuid())
+          $env:KOBE_NO_MODIFY_PATH = '1'
+          $env:KOBE_INSTALL_DIR = $d
+          $receipt = Join-Path $env:LOCALAPPDATA 'qntx\receipts\kobe.json'
+          $src = Get-Content -Raw dist/kobe.ps1
+          $sb = [scriptblock]::Create($src)
+
+          # Locked version from -Check, like the Unix job.
+          $global:LASTEXITCODE = 0
+          $v = & $sb -Check
+          if ($LASTEXITCODE -ne 0 -or -not $v) { exit 1 }
+          $vpat = [regex]::Escape($v)
+
+          # irm-style invocation (env-driven), then scriptblock with params.
+          $global:LASTEXITCODE = 0
+          Invoke-Expression $src
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (-not (Test-Path "$d/kobe.exe")) { exit 1 }
+          if (-not ((& "$d/kobe.exe" --version) -match $vpat)) { exit 1 }
+          if (-not (Test-Path $receipt)) { exit 1 }
+
+          # session survived iex and the idempotent rerun skips work
+          $global:LASTEXITCODE = 0
+          Invoke-Expression $src
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          $global:LASTEXITCODE = 0
+          & $sb -InstallDir $d -Force
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $global:LASTEXITCODE = 0
+          & $sb -InstallDir $d -Version 5.0.0
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (-not ((& "$d/kobe.exe" --version) -match '5\.0\.0')) { exit 1 }
+          $global:LASTEXITCODE = 0
+          $ck = & $sb -Check
+          if ($LASTEXITCODE -ne 0 -or $ck -ne $v) { exit 1 }
+
+          # Tamper: corrupt every embedded hash; files must be unchanged.
+          $zeros = '0' * 64
+          $bad = $src -replace "'[0-9a-f]{64}'", "'$zeros'"
+          $binHash = (Get-FileHash "$d/kobe.exe").Hash
+          $rcptHash = (Get-FileHash $receipt).Hash
+          $global:LASTEXITCODE = 0
+          & ([scriptblock]::Create($bad)) -InstallDir $d -Force
+          if ($LASTEXITCODE -eq 0) { Write-Error 'tampered script installed'; exit 1 }
+          # the session is still alive after a failed scriptblock run —
+          # this statement (and the assertions below) must execute
+          $alive = 'session-alive'
+          if ((Get-FileHash "$d/kobe.exe").Hash -ne $binHash) { exit 1 }
+          if ((Get-FileHash $receipt).Hash -ne $rcptHash) { exit 1 }
+          if ($alive -ne 'session-alive') { exit 1 }
+
+          $global:LASTEXITCODE = 0
+          & $sb -InstallDir $d -Uninstall
+          if (Test-Path "$d/kobe.exe") { exit 1 }
+          if (Test-Path $receipt) { exit 1 }
+
+      - name: Windows e2e (Windows PowerShell 5.1)
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          $d = Join-Path $env:TEMP ('sh-e2e-' + [Guid]::NewGuid())
+          $env:KOBE_NO_MODIFY_PATH = '1'
+          $env:KOBE_INSTALL_DIR = $d
+          $receipt = Join-Path $env:LOCALAPPDATA 'qntx\receipts\kobe.json'
+          $src = Get-Content -Raw dist/kobe.ps1
+          $sb = [scriptblock]::Create($src)
+
+          # Locked version from -Check, like the Unix job.
+          $global:LASTEXITCODE = 0
+          $v = & $sb -Check
+          if ($LASTEXITCODE -ne 0 -or -not $v) { exit 1 }
+          $vpat = [regex]::Escape($v)
+
+          # irm-style invocation (env-driven), then scriptblock with params.
+          $global:LASTEXITCODE = 0
+          Invoke-Expression $src
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (-not (Test-Path "$d/kobe.exe")) { exit 1 }
+          if (-not ((& "$d/kobe.exe" --version) -match $vpat)) { exit 1 }
+          if (-not (Test-Path $receipt)) { exit 1 }
+
+          # session survived iex and the idempotent rerun skips work
+          $global:LASTEXITCODE = 0
+          Invoke-Expression $src
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          $global:LASTEXITCODE = 0
+          & $sb -InstallDir $d -Force
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $global:LASTEXITCODE = 0
+          & $sb -InstallDir $d -Version 5.0.0
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (-not ((& "$d/kobe.exe" --version) -match '5\.0\.0')) { exit 1 }
+          $global:LASTEXITCODE = 0
+          $ck = & $sb -Check
+          if ($LASTEXITCODE -ne 0 -or $ck -ne $v) { exit 1 }
+
+          # Tamper: corrupt every embedded hash; files must be unchanged.
+          $zeros = '0' * 64
+          $bad = $src -replace "'[0-9a-f]{64}'", "'$zeros'"
+          $binHash = (Get-FileHash "$d/kobe.exe").Hash
+          $rcptHash = (Get-FileHash $receipt).Hash
+          $global:LASTEXITCODE = 0
+          & ([scriptblock]::Create($bad)) -InstallDir $d -Force
+          if ($LASTEXITCODE -eq 0) { Write-Error 'tampered script installed'; exit 1 }
+          # the session is still alive after a failed scriptblock run —
+          # this statement (and the assertions below) must execute
+          $alive = 'session-alive'
+          if ((Get-FileHash "$d/kobe.exe").Hash -ne $binHash) { exit 1 }
+          if ((Get-FileHash $receipt).Hash -ne $rcptHash) { exit 1 }
+          if ($alive -ne 'session-alive') { exit 1 }
+
+          $global:LASTEXITCODE = 0
+          & $sb -InstallDir $d -Uninstall
+          if (Test-Path "$d/kobe.exe") { exit 1 }
+          if (Test-Path $receipt) { exit 1 }

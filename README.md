@@ -1,10 +1,8 @@
-<!-- markdownlint-disable MD033 MD041 -->
-
 # sh
 
-Install-script proxy for QuantX GitHub projects.
+Static install-script service for QuantX command-line tools.
 
-Deployed at [sh.qntx.org](https://sh.qntx.org).
+Deployed at [sh.qntx.org](https://sh.qntx.org). See [docs/](docs/).
 
 ## License
 

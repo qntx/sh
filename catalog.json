@@ -1,0 +1,16 @@
+{
+  "tools": {
+    "bcur": { "repo": "qntx/ur" },
+    "bux": { "repo": "qntx/bux", "installer": "repo" },
+    "h2m": { "repo": "qntx-labs/h2m" },
+    "kobe": { "repo": "qntx/kobe", "package": "kobe-cli" },
+    "ks": { "repo": "qntx/ks" },
+    "lifiswap": { "repo": "qntx-labs/lifiswap" },
+    "meme": { "repo": "qntx-labs/meme" },
+    "nosfry": { "repo": "qntx/nosfry" },
+    "pun": { "repo": "qntx-labs/pun" },
+    "siwx": { "repo": "qntx/siwx" },
+    "skills": { "repo": "qntx-labs/skill" },
+    "xmtp": { "repo": "qntx-labs/xmtp" }
+  }
+}

@@ -1,5 +1,5 @@
 {
   "title": "sh",
-  "description": "Documentation stub.",
-  "pages": ["index"]
+  "description": "Installer service for QuantX CLIs.",
+  "pages": ["index", "install", "protocol"]
 }
