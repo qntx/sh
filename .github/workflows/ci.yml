@@ -52,31 +52,20 @@ jobs:
       - name: Lint scripts
         run: |
           set -euo pipefail
-          # bux ships a sha-locked upstream installer (tools/bux/): check it
-          # for errors only; style findings belong to the upstream repo.
-          for f in dist/*.sh; do
-            if [ "$f" != dist/bux.sh ]; then
-              shellcheck -s sh "$f"
-            fi
+          for f in apps/sh/dist/*.sh; do
+            shfmt -i 4 -ci -d "$f"
           done
-          shellcheck -s sh test/e2e/unix.sh
-          shellcheck -s sh -S error tools/bux/install.sh dist/bux.sh
-          for f in dist/*.sh; do
-            if [ "$f" != dist/bux.sh ]; then
-              shfmt -i 4 -ci -d "$f"
-            fi
-          done
-          shfmt -i 4 -ci -d test/e2e/unix.sh
+          shfmt -i 4 -ci -d apps/sh/tests/e2e/unix.sh
       - name: Smoke scripts under POSIX shells
         run: |
           set -euo pipefail
           for sh in dash 'bash --posix' 'busybox sh'; do
-            $sh dist/kobe.sh --help >/dev/null
-            $sh dist/kobe.sh --check >/dev/null
-            $sh dist/kobe.sh --dry-run >/dev/null 2>&1 || true
+            $sh apps/sh/dist/kobe.sh --help >/dev/null
+            $sh apps/sh/dist/kobe.sh --check >/dev/null
+            $sh apps/sh/dist/kobe.sh --dry-run >/dev/null 2>&1 || true
             # index exits 1 by design (S1).
             for a in --help --check --dry-run; do
-              if $sh dist/index.sh $a >/dev/null 2>&1; then
+              if $sh apps/sh/dist/index.sh $a >/dev/null 2>&1; then
                 echo "::error::index.sh $a under $sh exited 0"; exit 1
               fi
             done
@@ -101,14 +90,11 @@ jobs:
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Force -Scope CurrentUser
-          # Our rendered/test scripts: zero warnings. bux.ps1 is
-          # upstream-owned and sha-locked — Error severity only.
-          $own = @(Get-ChildItem dist/*.ps1 | Where-Object Name -ne 'bux.ps1') + @(Get-Item test/e2e/windows.ps1)
+          # Our rendered/test scripts must produce zero warnings.
+          $own = @(Get-ChildItem apps/sh/dist/*.ps1) + @(Get-Item apps/sh/tests/e2e/windows.ps1)
           $r = @($own | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Severity Warning, Error })
           $r | Format-Table -AutoSize
-          $r2 = @('dist/bux.ps1', 'tools/bux/install.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path $_ -Severity Error })
-          $r2 | Format-Table -AutoSize
-          if ($r.Count -gt 0 -or $r2.Count -gt 0) { exit 1 }
+          if ($r.Count -gt 0) { exit 1 }
 
   e2e:
     strategy:
@@ -130,12 +116,12 @@ jobs:
       - run: bun run build
       - name: Unix e2e
         if: matrix.os != 'windows-2022'
-        run: sh test/e2e/unix.sh dist/kobe.sh
+        run: sh apps/sh/tests/e2e/unix.sh apps/sh/dist/kobe.sh
       - name: Windows e2e (PowerShell 7)
         if: matrix.os == 'windows-2022'
         shell: pwsh
-        run: pwsh -NoProfile -File test/e2e/windows.ps1
+        run: pwsh -NoProfile -File apps/sh/tests/e2e/windows.ps1
       - name: Windows e2e (Windows PowerShell 5.1)
         if: matrix.os == 'windows-2022'
         shell: pwsh
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File test/e2e/windows.ps1
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File apps/sh/tests/e2e/windows.ps1

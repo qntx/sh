@@ -1,29 +1,47 @@
 {
-  "name": "sh",
+  "name": "@qntx/sh-monorepo",
   "version": "0.0.0",
   "private": true,
-  "license": "MIT",
+  "license": "MIT OR Apache-2.0",
+  "author": "QuantX <x@qntx.org>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qntx/sh.git"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "type": "module",
   "scripts": {
-    "build": "bun src/build.ts",
-    "sync": "bun src/sync.ts",
-    "lint": "oxfmt --check && oxlint",
-    "lint:fix": "oxfmt && oxlint --fix",
-    "fmt": "oxfmt",
-    "test": "bun test",
-    "typecheck": "tsc --noEmit",
-    "check": "bun run lint && bun run typecheck && bun run build && bun run test"
+    "lint": "vp check && taplo fmt --check",
+    "typecheck": "vp run -r typecheck && tsc --noEmit",
+    "build": "vp run -r build",
+    "test": "vp run -r test",
+    "sync": "vp run sh#sync",
+    "prepare": "vp config"
   },
   "devDependencies": {
     "@qntx/oxfmt": "1.1.1",
     "@qntx/oxlint": "1.1.1",
     "@qntx/tsconfig": "1.0.1",
-    "@types/bun": "1.4.2",
-    "oxfmt": "0.73.0",
-    "oxlint": "1.87.0",
-    "oxlint-tsgolint": "7.0.2004",
+    "@taplo/cli": "0.7.0",
+    "@types/node": "26.6.5",
     "typescript": "7.0.2",
-    "wrangler": "4.151.1"
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.3.0",
+    "vite-plus": "1.3.0"
   },
-  "packageManager": "bun@1.4.2"
+  "overrides": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.3.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "bun",
+      "version": "1.4.0",
+      "onFail": "ignore"
+    }
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
 }

@@ -10,22 +10,26 @@
 
 ## Architecture invariants
 
-- Static site: `bun run build` renders `dist/` offline and deterministically
-  from `catalog.json` (human) + `releases.json` (sync-generated lock) +
-  `templates/`. Nothing runs at request time.
-- Only the sync task (`bun run sync`, cron every 15 min) calls the GitHub
-  API; it locks the newest stable `vX.Y.Z` tag, verifies every asset's
-  `.sha256` (plus the API `digest` when present), inspects archives, and
-  refuses a shrinking target set unless forced. Failures are atomic:
-  nothing is written.
-- The installer contract (flags, env vars, exit codes 0/1/2/3, receipt JSON)
-  is public and additive-only. `templates/install.sh` is POSIX — no `eval`,
-  no `local`; secrets never appear in the scripts.
-- `installer: "repo"` tools (bux) sync `install.sh`/`install.ps1` from the
-  locked tag into `tools/<key>/` with sha256 recorded in the lock; `bun run
-  build` fails if they drift.
+- Vite+ (vp) monorepo: `apps/sh` is the sh.qntx.org static site;
+  `packages/github` is a private shared package (never published).
+- Static site: `bun run build` renders `apps/sh/dist/` offline and
+  deterministically from `catalog.json` (human) + `releases.json`
+  (sync-generated lock) + `templates/`. Nothing runs at request time.
+- Only the sync task (`bun run sync` in `apps/sh`, cron every 15 min)
+  calls the GitHub API, via `@qntx/github`; it locks the newest stable
+  `vX.Y.Z` tag, verifies every asset's `.sha256` (plus the API `digest`
+  when present), inspects archives, and refuses a shrinking target set
+  unless forced. Failures are atomic: nothing is written.
+- The installer contract (flags, env vars, exit codes 0/1/2/3, receipt
+  JSON) is public and additive-only. `apps/sh/templates/install.sh` is
+  POSIX — no `eval`, no `local`; scripts and generated dist output are
+  pure ASCII; secrets never appear in the scripts.
+- Code uses Node-standard APIs only (`node:fs`, `node:path`, `node:crypto`,
+  `node:child_process`, `node:url`, global `fetch`) so it runs under both
+  Bun (scripts) and `vp test` (vitest). No `Bun.*` APIs.
 - Runtime dependencies: none. Every devDependency is exact-pinned and at
-  least 7 days old at adoption.
+  least 7 days old at adoption. TOML is formatted by taplo
+  (`.taplo.toml`, aligned `=`).
 
 ## Commands
 
@@ -33,31 +37,30 @@ Local gate before a pull request:
 
 ```bash
 bun install --frozen-lockfile
-bun run lint          # oxfmt --check && oxlint
+bun run lint          # vp check + taplo fmt --check
 bun run typecheck
-bun run build         # offline render into dist/
+bun run build         # offline render into apps/sh/dist/
 bun run test
-for f in dist/*.sh; do [ "$f" != dist/bux.sh ] && shellcheck -s sh "$f"; done
-shellcheck -s sh test/e2e/unix.sh
-shellcheck -s sh -S error tools/bux/install.sh dist/bux.sh   # upstream-owned
-for f in dist/*.sh; do [ "$f" != dist/bux.sh ] && shfmt -i 4 -ci -d "$f"; done
-shfmt -i 4 -ci -d test/e2e/unix.sh
-sh test/e2e/unix.sh dist/kobe.sh                            # e2e on Unix
+for f in apps/sh/dist/*.sh; do shellcheck -s sh "$f"; done
+shellcheck -s sh apps/sh/tests/e2e/unix.sh
+for f in apps/sh/dist/*.sh; do shfmt -i 4 -ci -d "$f"; done
+shfmt -i 4 -ci -d apps/sh/tests/e2e/unix.sh
+sh apps/sh/tests/e2e/unix.sh apps/sh/dist/kobe.sh   # e2e on Unix
 # on Windows runners:
-#   powershell -NoProfile -ExecutionPolicy Bypass -File test/e2e/windows.ps1
-#   pwsh -NoProfile -File test/e2e/windows.ps1
-#   Invoke-ScriptAnalyzer on dist/*.ps1 (not bux.ps1) + test/e2e/windows.ps1
-npx markdownlint-cli2 "*.md" "docs/*.mdx"
+#   powershell -NoProfile -ExecutionPolicy Bypass -File apps/sh/tests/e2e/windows.ps1
+#   pwsh -NoProfile -File apps/sh/tests/e2e/windows.ps1
+#   Invoke-ScriptAnalyzer on apps/sh/dist/*.ps1 + apps/sh/tests/e2e/windows.ps1
+npx --yes markdownlint-cli2@0.23.3 "*.md" "docs/**/*.mdx"
 ```
 
 Sync the release lock (needs `GITHUB_TOKEN`, e.g. `$(gh auth token)`):
 
 ```bash
-bun run sync          # SYNC_TOOL=<key> SYNC_FORCE=true for manual control
+cd apps/sh && bun run sync          # SYNC_TOOL=<key> SYNC_FORCE=true
 ```
 
 Preview a deploy (no traffic switch):
 
 ```bash
-npx wrangler versions upload
+cd apps/sh && npx wrangler versions upload
 ```

@@ -39,7 +39,7 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      - run: bun run sync
+      - run: cd apps/sh && bun run sync
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SYNC_TOOL: ${{ inputs.tool }}
@@ -58,7 +58,7 @@ jobs:
           set -euo pipefail
           git config user.name "$GIT_USER_NAME"
           git config user.email "$GIT_USER_EMAIL"
-          git add -- releases.json tools
+          git add -- apps/sh/releases.json
           if git diff --cached --quiet; then
             echo 'No sync changes.'
             exit 0
