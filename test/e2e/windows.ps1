@@ -3,6 +3,10 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File test/e2e/windows.ps1
 #   pwsh -NoProfile -File test/e2e/windows.ps1
 # Failing assertions throw, leaving a non-zero process exit code.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingInvokeExpression', '',
+    Justification = 'Exercises the documented irm | iex installation path.')]
+param()
+
 $ErrorActionPreference = 'Stop'
 
 $scriptDir = $PSScriptRoot
@@ -56,7 +60,7 @@ $rcptHash = (Get-FileHash $receipt).Hash
 $global:LASTEXITCODE = 0
 & ([scriptblock]::Create($bad)) -InstallDir $d -Force
 if ($LASTEXITCODE -eq 0) { throw 'tampered scriptblock install succeeded' }
-# Tamper (irm form) — must also fail and the session must stay alive.
+# Tamper (irm form): must also fail and the session must stay alive.
 $global:LASTEXITCODE = 0
 Invoke-Expression $bad
 if ($LASTEXITCODE -eq 0) { throw 'tampered iex install succeeded' }
