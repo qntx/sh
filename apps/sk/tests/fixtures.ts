@@ -2,9 +2,11 @@ import type { Release } from "@qntx/github";
 
 import type { Deps } from "../src/sync.ts";
 
-export const ENC = new TextEncoder();
-export const SKILL = ENC.encode("---\nname: kobe\ndescription: A skill.\n---\n# kobe\n");
-export const SHA = "40".repeat(20);
+export const ENC: TextEncoder = new TextEncoder();
+export const SKILL: Uint8Array = ENC.encode(
+  "---\nname: kobe\ndescription: A skill.\n---\n# kobe\n",
+);
+export const SHA: string = "40".repeat(20);
 
 export function rel(tag: string): Release {
   return { tag_name: tag, draft: false, prerelease: false, immutable: false, assets: [] };

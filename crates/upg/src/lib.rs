@@ -166,8 +166,6 @@ fn home_dir() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-#[cfg(test)]
-mod contract;
 
 #[cfg(test)]
 mod tests {
@@ -218,3 +216,6 @@ fn load_receipt(env: &Env, tool: &str) -> Result<Option<receipt::Receipt>, Error
     };
     Ok(Some(receipt::parse_receipt(tool, &contents)?))
 }
+
+#[cfg(test)]
+mod contract;
