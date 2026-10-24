@@ -13,7 +13,7 @@ Report security issues privately via GitHub Security Advisories on
 
 Please include:
 
-- The affected app or package (`apps/sh`, `packages/github`, `crates/`)
+- The affected app or package (`apps/sh`, `packages/sync`, `crates/`)
 - Minimal reproduction (catalog key, URL, or installer flag)
 - Impact assessment (e.g. hash-verification bypass, script injection)
 

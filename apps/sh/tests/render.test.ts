@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import type { LockEntry, ToolSpec } from "../src/catalog.ts";
+import type { ToolSpec } from "../src/catalog.ts";
+import type { LockEntry } from "../src/lock.ts";
 import { renderSh, substitute } from "../src/render.ts";
 
 const spec: ToolSpec = { repo: "qntx/kobe", package: "kobe-cli" };

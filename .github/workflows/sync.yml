@@ -24,9 +24,6 @@ concurrency:
 
 jobs:
   sync:
-    outputs:
-      pushed: ${{ steps.push.outputs.pushed }}
-      ref: ${{ steps.push.outputs.ref }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -80,16 +77,3 @@ jobs:
           done
           echo '::error::Failed to push after 3 attempts.'
           exit 1
-
-  # GITHUB_TOKEN pushes do not trigger other workflows, so the lock update
-  # deploys via an explicit workflow_call (the pushed SHA, not main HEAD).
-  deploy:
-    needs: sync
-    if: needs.sync.outputs.pushed == 'true'
-    # zizmor:ignore[secrets-inherit] deploy.yml only consumes
-    # CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID; inherit is required because
-    # reusable-workflow secrets do not propagate automatically.
-    uses: ./.github/workflows/deploy.yml
-    secrets: inherit
-    with:
-      ref: ${{ needs.sync.outputs.ref }}

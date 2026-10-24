@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import type { Release } from "../src/client.ts";
+import type { Release } from "../src/github.ts";
 import { latestStable } from "../src/release.ts";
 
 function rel(tag: string, opts: { draft?: boolean; prerelease?: boolean } = {}): Release {

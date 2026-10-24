@@ -16,11 +16,12 @@ import {
   repo as getRepo,
   text,
   writeIfChanged,
-} from "@qntx/github";
+} from "@qntx/sync";
 
 import { parseCatalog, sanitizeDescription } from "./catalog.ts";
-import type { LockEntry, ToolSpec } from "./catalog.ts";
-import { changed, loadReleases, mergeReleases, pickToolKeys } from "./lockops.ts";
+import type { ToolSpec } from "./catalog.ts";
+import type { LockEntry } from "./lock.ts";
+import { changed, loadReleases, mergeReleases, pickToolKeys } from "./lock.ts";
 import { assetName, isWindows, selectRelease } from "./select.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));

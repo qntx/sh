@@ -1,6 +1,6 @@
 // Pure release selection: newest stable vX.Y.Z tag. No I/O — unit-testable.
 
-import type { Release } from "./client.ts";
+import type { Release } from "./github.ts";
 
 export const STABLE_TAG_RE: RegExp = /^v(\d+)\.(\d+)\.(\d+)$/;
 
@@ -14,9 +14,9 @@ function compare(a: SemVer, b: SemVer): number {
   return a.major - b.major || a.minor - b.minor || a.patch - b.patch;
 }
 
-/// Newest stable release: non-draft, non-prerelease, tag `vX.Y.Z`, max by
-/// numeric semver (not by date or GitHub's "Latest" flag). Undefined when
-/// none qualify — callers decide whether that is an error.
+// Newest stable release: non-draft, non-prerelease, tag `vX.Y.Z`, max by
+// numeric semver (not by date or GitHub's "Latest" flag). Undefined when
+// none qualify — callers decide whether that is an error.
 export function latestStable(releases: Release[]): Release | undefined {
   let best: Release | undefined;
   let bestV: SemVer | undefined;

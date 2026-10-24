@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import { parseCatalog, parseLockEntry, parseReleases } from "../src/catalog.ts";
+import { parseCatalog } from "../src/catalog.ts";
+import { parseLockEntry, parseReleases } from "../src/lock.ts";
 
 const good = { tools: { kobe: { repo: "qntx/kobe", package: "kobe-cli" } } };
 

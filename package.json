@@ -15,13 +15,14 @@
   "type": "module",
   "scripts": {
     "lint": "vp check && taplo fmt --check",
-    "typecheck": "vp run -r typecheck && tsc --noEmit",
+    "typecheck": "vp run --no-cache -r typecheck && tsc --noEmit",
     "build": "vp run -r build",
     "test": "vp run -r test",
     "sync": "vp run sh#sync && vp run sk#sync",
     "prepare": "vp config",
     "test:contract": "UPG_CONTRACT_SCRIPT=$PWD/apps/sh/dist/kobe.sh cargo test -p upg -- --include-ignored",
-    "release": "bumpp"
+    "release": "bumpp",
+    "deploy": "vp run -r build && vp run -r deploy"
   },
   "devDependencies": {
     "@qntx/oxfmt": "1.1.1",

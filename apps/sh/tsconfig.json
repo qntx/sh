@@ -1,9 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // Development resolution to the workspace sibling's TS sources; @qntx/sync
+    // has no emitted types for module resolution to find.
     "paths": {
-      "@qntx/github": ["../../packages/github/src/index.ts"]
+      "@qntx/sync": ["../../packages/sync/src/index.ts"]
     }
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "vite.config.ts"]
 }
