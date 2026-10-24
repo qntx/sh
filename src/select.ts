@@ -12,10 +12,8 @@ export class SelectError extends Error {
   }
 }
 
-const WINDOWS_RE = /^[a-z0-9]+-pc-windows-msvc$/;
-
 export function isWindows(target: string): boolean {
-  return WINDOWS_RE.test(target);
+  return target.endsWith("-pc-windows-msvc");
 }
 
 export function assetName(bin: string, version: string, target: string): string {
@@ -96,6 +94,20 @@ export async function selectRelease(
   const version = `${bestV.major}.${bestV.minor}.${bestV.patch}`;
 
   const byName = new Map(best.assets.map((a) => [a.name, a]));
+  // Any asset shaped like one of ours (<bin>-<version>-*) but not matching
+  // an expected name indicates a naming drift — fail loudly instead of
+  // silently dropping a platform (as happened to x86_64-pc-windows-msvc).
+  const expected = new Set<string>();
+  for (const target of TARGETS) {
+    const name = assetName(bin, version, target);
+    expected.add(name);
+    expected.add(`${name}.sha256`);
+  }
+  for (const a of best.assets) {
+    if (a.name.startsWith(`${bin}-${version}-`) && !expected.has(a.name)) {
+      throw new SelectError(`${repo}@${best.tag_name}: unrecognized asset ${a.name}`);
+    }
+  }
   const assets: Record<string, string> = {};
   for (const target of TARGETS) {
     const name = assetName(bin, version, target);

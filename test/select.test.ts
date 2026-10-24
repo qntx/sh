@@ -73,3 +73,27 @@ describe("parseShaFile shared forms", () => {
     expect(() => parseShaFile(content, "x-1.0.0-a.tar.gz")).toThrow();
   });
 });
+
+test("x86_64-pc-windows-msvc zip is selected", async () => {
+  const T = "x86_64-pc-windows-msvc";
+  const rs = [rel("v1.0.0", assetSet("x", "1.0.0", [T]))];
+  const s = await selectRelease("o/r", "x", rs, undefined, false, sums);
+  expect(s.assets[T]).toBe(H);
+});
+
+test("unrecognized <bin>-<ver>-* asset fails selection", async () => {
+  const assets = assetSet("x", "1.0.0", ["x86_64-unknown-linux-gnu"]);
+  assets.push("x-1.0.0-x86_64-unknown-freebsd.tar.gz");
+  assets.push("x-1.0.0-x86_64-unknown-freebsd.tar.gz.sha256");
+  await fails(
+    selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, sums),
+    "unrecognized asset",
+  );
+});
+
+test("other-prefix assets (bux-guest, xmtp-ffi) stay ignored", async () => {
+  const assets = assetSet("bux", "0.9.0", ["x86_64-unknown-linux-gnu"]);
+  assets.push("bux-guest-x86_64.bin", "ffi-v0.2.0.tar.gz");
+  const s = await selectRelease("o/r", "bux", [rel("v0.9.0", assets)], undefined, false, sums);
+  expect(s.version).toBe("0.9.0");
+});

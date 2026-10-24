@@ -38,9 +38,16 @@ bun run typecheck
 bun run build         # offline render into dist/
 bun run test
 for f in dist/*.sh; do [ "$f" != dist/bux.sh ] && shellcheck -s sh "$f"; done
+shellcheck -s sh test/e2e/unix.sh
 shellcheck -s sh -S error tools/bux/install.sh dist/bux.sh   # upstream-owned
 for f in dist/*.sh; do [ "$f" != dist/bux.sh ] && shfmt -i 4 -ci -d "$f"; done
-npx markdownlint-cli2 "*.md" "docs/*.mdx" "skills/**/*.md"
+shfmt -i 4 -ci -d test/e2e/unix.sh
+sh test/e2e/unix.sh dist/kobe.sh                            # e2e on Unix
+# on Windows runners:
+#   powershell -NoProfile -ExecutionPolicy Bypass -File test/e2e/windows.ps1
+#   pwsh -NoProfile -File test/e2e/windows.ps1
+#   Invoke-ScriptAnalyzer on dist/*.ps1 (not bux.ps1) + test/e2e/windows.ps1
+npx markdownlint-cli2 "*.md" "docs/*.mdx"
 ```
 
 Sync the release lock (needs `GITHUB_TOKEN`, e.g. `$(gh auth token)`):

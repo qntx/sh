@@ -151,8 +151,8 @@ export function renderIndexPs1(catalog: Catalog, releases: Releases): string {
     const desc = description.replaceAll("'", "''");
     assert(/^[^\n]*$/, desc, `description for ${key}`);
     lines.push(
-      `    Write-Host ('  {0,-12} {1}' -f '${key}', '${desc}')`,
-      `    Write-Host '    irm https://sh.qntx.org/${key}/ps | iex'`,
+      `    [Console]::Error.WriteLine(('  {0,-12} {1}' -f '${key}', '${desc}'))`,
+      `    [Console]::Error.WriteLine('    irm https://sh.qntx.org/${key}/ps | iex')`,
     );
   }
   return lines.join("\n");
