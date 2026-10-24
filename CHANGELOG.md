@@ -20,4 +20,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   latest version (release `.sha256` for `--version` pins), self-check the
   binary before replacing anything, install atomically, write a receipt,
   and prefer musl builds on Linux when present.
-- Linux release assets built on pinned `ubuntu-24.04`; musl targets supported.
