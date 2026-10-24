@@ -103,9 +103,10 @@ jobs:
           Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Force -Scope CurrentUser
           # Our rendered/test scripts: zero warnings. bux.ps1 is
           # upstream-owned and sha-locked — Error severity only.
-          $r = Invoke-ScriptAnalyzer -Path dist/index.ps1,dist/bcur.ps1,dist/h2m.ps1,dist/kobe.ps1,dist/ks.ps1,dist/lifiswap.ps1,dist/meme.ps1,dist/nosfry.ps1,dist/pun.ps1,dist/siwx.ps1,dist/skills.ps1,dist/xmtp.ps1,test/e2e/windows.ps1 -Severity Warning,Error
+          $own = @(Get-ChildItem dist/*.ps1 | Where-Object Name -ne 'bux.ps1') + @(Get-Item test/e2e/windows.ps1)
+          $r = @($own | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Severity Warning, Error })
           $r | Format-Table -AutoSize
-          $r2 = Invoke-ScriptAnalyzer -Path dist/bux.ps1,tools/bux/install.ps1 -Severity Error
+          $r2 = @('dist/bux.ps1', 'tools/bux/install.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path $_ -Severity Error })
           $r2 | Format-Table -AutoSize
           if ($r.Count -gt 0 -or $r2.Count -gt 0) { exit 1 }
 
