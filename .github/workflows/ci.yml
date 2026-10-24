@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SHFMT_VERSION: "3.14.1"
+  # sha256 of https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_amd64
+  SHFMT_SHA256: "76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf"
+
+jobs:
+  ci:
+    uses: qntx/workflows/.github/workflows/ci-bun.yml@v2
+    permissions:
+      contents: read
+
+  shell:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4"
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Install shellcheck and shfmt
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends shellcheck busybox-static
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          curl -fsSL -o "$tmp/shfmt" \
+            "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64"
+          echo "${SHFMT_SHA256}  $tmp/shfmt" | sha256sum -c
+          sudo install -m 0755 "$tmp/shfmt" /usr/local/bin/shfmt
+      - name: Lint scripts
+        run: |
+          set -euo pipefail
+          # bux ships a sha-locked upstream installer (tools/bux/): check it
+          # for errors only; style findings belong to the upstream repo.
+          for f in dist/*.sh; do
+            if [ "$f" != dist/bux.sh ]; then
+              shellcheck -s sh "$f"
+            fi
+          done
+          shellcheck -s sh test/e2e/unix.sh
+          shellcheck -s sh -S error tools/bux/install.sh dist/bux.sh
+          for f in dist/*.sh; do
+            if [ "$f" != dist/bux.sh ]; then
+              shfmt -i 4 -ci -d "$f"
+            fi
+          done
+          shfmt -i 4 -ci -d test/e2e/unix.sh
+      - name: Smoke scripts under POSIX shells
+        run: |
+          set -euo pipefail
+          for sh in dash 'bash --posix' 'busybox sh'; do
+            $sh dist/kobe.sh --help >/dev/null
+            $sh dist/kobe.sh --check >/dev/null
+            $sh dist/kobe.sh --dry-run >/dev/null 2>&1 || true
+            # index exits 1 by design (S1).
+            for a in --help --check --dry-run; do
+              if $sh dist/index.sh $a >/dev/null 2>&1; then
+                echo "::error::index.sh $a under $sh exited 0"; exit 1
+              fi
+            done
+          done
+
+  powershell:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4"
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Force -Scope CurrentUser
+          # Our rendered/test scripts: zero warnings. bux.ps1 is
+          # upstream-owned and sha-locked — Error severity only.
+          $own = @(Get-ChildItem dist/*.ps1 | Where-Object Name -ne 'bux.ps1') + @(Get-Item test/e2e/windows.ps1)
+          $r = @($own | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Severity Warning, Error })
+          $r | Format-Table -AutoSize
+          $r2 = @('dist/bux.ps1', 'tools/bux/install.ps1' | ForEach-Object { Invoke-ScriptAnalyzer -Path $_ -Severity Error })
+          $r2 | Format-Table -AutoSize
+          if ($r.Count -gt 0 -or $r2.Count -gt 0) { exit 1 }
+
+  e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4"
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - name: Unix e2e
+        if: matrix.os != 'windows-2022'
+        run: sh test/e2e/unix.sh dist/kobe.sh
+      - name: Windows e2e (PowerShell 7)
+        if: matrix.os == 'windows-2022'
+        shell: pwsh
+        run: pwsh -NoProfile -File test/e2e/windows.ps1
+      - name: Windows e2e (Windows PowerShell 5.1)
+        if: matrix.os == 'windows-2022'
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File test/e2e/windows.ps1

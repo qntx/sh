@@ -1,0 +1,29 @@
+{
+  "name": "sh",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "bun src/build.ts",
+    "sync": "bun src/sync.ts",
+    "lint": "oxfmt --check && oxlint",
+    "lint:fix": "oxfmt && oxlint --fix",
+    "fmt": "oxfmt",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "check": "bun run lint && bun run typecheck && bun run build && bun run test"
+  },
+  "devDependencies": {
+    "@qntx/oxfmt": "1.1.1",
+    "@qntx/oxlint": "1.1.1",
+    "@qntx/tsconfig": "1.0.1",
+    "@types/bun": "1.4.2",
+    "oxfmt": "0.73.0",
+    "oxlint": "1.87.0",
+    "oxlint-tsgolint": "7.0.2004",
+    "typescript": "7.0.2",
+    "wrangler": "4.151.1"
+  },
+  "packageManager": "bun@1.4.2"
+}

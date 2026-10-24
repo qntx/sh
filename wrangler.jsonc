@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sh",
+  "compatibility_date": "2026-10-15",
+  // workers_dev + preview_urls: `wrangler versions upload` emits a
+  // <version>-sh.<subdomain>.workers.dev URL for e2e preview testing even
+  // though production traffic is served on the custom domain.
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "none",
+    "not_found_handling": "none"
+  },
+  "routes": [{ "pattern": "sh.qntx.org", "custom_domain": true }]
+}

@@ -1,0 +1,75 @@
+name: Sync
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      tool:
+        description: "Optional catalog key to sync only that tool"
+        required: false
+        type: string
+      force:
+        description: "Accept a shrinking target set"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sh-sync-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4"
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run sync
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SYNC_TOOL: ${{ inputs.tool }}
+          SYNC_FORCE: ${{ inputs.force }}
+
+      # The same offline build Workers Builds runs; a broken lock must
+      # fail before anything is committed.
+      - run: bun run build
+
+      - name: Commit lock and tools
+        shell: bash
+        env:
+          GIT_USER_NAME: github-actions[bot]
+          GIT_USER_EMAIL: github-actions[bot]@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          git config user.name "$GIT_USER_NAME"
+          git config user.email "$GIT_USER_EMAIL"
+          git add -- releases.json tools
+          if git diff --cached --quiet; then
+            echo 'No sync changes.'
+            exit 0
+          fi
+          git commit -m "chore(sync): update releases"
+          for attempt in 1 2 3; do
+            if git push; then
+              exit 0
+            fi
+            git pull --rebase
+            echo "push attempt $attempt failed; rebased"
+          done
+          echo '::error::Failed to push after 3 attempts.'
+          exit 1

@@ -1,0 +1,170 @@
+{
+  "bcur": {
+    "version": "3.0.0",
+    "tag": "v3.0.0",
+    "commit": "759fd5b96ebe4cbccde660770a5510c04e048540",
+    "immutable": false,
+    "description": "Uniform Resources protocol implementation in TypeScript and Rust",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "fec78694546195304849b50bbb9434fadc1f2772f3ae7842bddde25f920eba01",
+      "aarch64-unknown-linux-gnu": "c70f40e27597ad2a9befcaf14ff330ddced77c1cadfe644327ef3d4476e047fd",
+      "aarch64-apple-darwin": "0e00ec445fc11d6926f7bdeb0d27ba5a385c4d990fa1de4e9016bd9b957c1ec1",
+      "x86_64-pc-windows-msvc": "95eef1ab95d5780e2b00748c6fb1c4b6c9f1fee61e75a1832500d1c45f1c1ea2",
+      "aarch64-pc-windows-msvc": "d6e7dc09fde856c7c7b29de77a1975bc9fcbf0b99ee79aea11939fe699446a1e"
+    }
+  },
+  "bux": {
+    "version": "0.9.0",
+    "tag": "v0.9.0",
+    "commit": "3b440050dd754fa4de6038339fdff93045b24e3c",
+    "immutable": false,
+    "description": "Embedded micro-VM sandbox for running AI agents",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "e93b8dcdb10b5f2250918832ec3eb9fb45fa687847a09058c4f8c745c6714106",
+      "aarch64-unknown-linux-gnu": "d130019173479593eeb136b80ca942a9b5b783ca5e9f39876aaac27f113ea5ce",
+      "aarch64-apple-darwin": "e9915834f1801ac75e692623246a1f8d092dfe25c228cf318a40a92b1a6cf60b"
+    },
+    "installer": {
+      "sh": "6b05522a10e0be257ef45f56aaed956f2e4007eef0d322d7f613f0361d98c811",
+      "ps1": "033b46de193d104b87295f5aae4b84eec5e81d5cf0e4f9b6b2a74c3f80abffd6"
+    }
+  },
+  "h2m": {
+    "version": "0.7.1",
+    "tag": "v0.7.1",
+    "commit": "84b711c198bb04eed4bc1d24a80cdbe1c1cdc9c9",
+    "immutable": false,
+    "description": "A blazing-fast HTML to Markdown converter, written in Rust.",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "89be3f73347a1eb34b98b071422dbf02a28a54080676d140d28ec307db76df76",
+      "aarch64-unknown-linux-gnu": "90e7d4c8db7a213266ec718178080ad8fd70156efe0e930745760d6f496a841d",
+      "aarch64-apple-darwin": "2b0cb97994bddd0bb63d2590a05a5fbd38899030e50488cfd7376aaa314ab891",
+      "x86_64-pc-windows-msvc": "5f7b42faea2116601dbd8925f93e13811b8ba23a527d5437c31f300196b4f311",
+      "aarch64-pc-windows-msvc": "7e93a0ecabbce41ae8b1e1a2673b0e7769a1eb1ea00b0ffe14faf8663810990b"
+    }
+  },
+  "kobe": {
+    "version": "6.0.0",
+    "tag": "v6.0.0",
+    "commit": "ca1ee97837a93d2676f96402c695c7aa3fdd0318",
+    "immutable": false,
+    "description": "Pure offline HD wallet generator: BIP-39 mnemonic to keys and addresses for 20 chains",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "351864eae7b95e89af563bfa1ad9708f36577391462d25ce1709becb4a15fa9b",
+      "aarch64-unknown-linux-gnu": "58760220da16dd1b3572587461f8037cef6e2d5f717e107154dd00097eed9b7f",
+      "aarch64-apple-darwin": "5b42d46bac45152d246c67314383b0eb7c185dad55d1a9b579dacbb49e154310",
+      "x86_64-pc-windows-msvc": "0e20d0e177c2cc0629e52312efdc8511bf19684e51845616cf671c660144f6a1",
+      "aarch64-pc-windows-msvc": "c3360e8063f1dba34d486df09d51b3fee68fdee1d40bee78c43549f3b4356e4f"
+    }
+  },
+  "ks": {
+    "version": "0.5.0",
+    "tag": "v0.5.0",
+    "commit": "90be108f7cb120a2ac96d0820504b8ae2ddbac16",
+    "immutable": false,
+    "description": "A local-first, age-encrypted secret manager in Rust",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "c6a11f5e906986b76186b9cca54d86d429f8049d6e0e1d43fd8fe2e4a800a01b",
+      "aarch64-unknown-linux-gnu": "ea6582cfca78070e6666917e63f57360380f067a14e1b483d4ca01baad790b25",
+      "aarch64-apple-darwin": "bec4c872e4002dcb2bcfbbae3b6fa04c5f73097ffe0a1d9aaafe5297365fba5c",
+      "x86_64-pc-windows-msvc": "e6a8ea3ad5e54cb260376bb06e71733f736b23723d965655f09781907d4762e1",
+      "aarch64-pc-windows-msvc": "f040390d983b5dbb79afc3a9f3807a2a4d5b02a9c959bdf335c18d5a4dbc265b"
+    }
+  },
+  "lifiswap": {
+    "version": "0.4.1",
+    "tag": "v0.4.1",
+    "commit": "da40ff83926b38438c07d1410df3a128c62d9ef0",
+    "immutable": false,
+    "description": "Rust SDK for the LI.FI cross-chain swap and bridge aggregation API.",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "f87780afaa151ef493f7d43549f61b60d23acf25aa58efd7509ef0fe34f47ffb",
+      "aarch64-unknown-linux-gnu": "7cf3c91d8a2aeb0a6deef0b52d6d370084fdc10e7e08d168e2fb271523236d14",
+      "aarch64-apple-darwin": "356a24755a276491b6f92438e1aed7d68725a9743d077b1bf2a3417bce76e80b",
+      "x86_64-pc-windows-msvc": "a62f1e745e0fac995c020452e4dcea4411049b5243dea88a456c30bbbd879e82",
+      "aarch64-pc-windows-msvc": "befb17931c309e6a8eeac8741b7d17081118f6b4d7981bbb76b72ae4a8a32cde"
+    }
+  },
+  "meme": {
+    "version": "0.7.0",
+    "tag": "v0.7.0",
+    "commit": "9c8e74d8b5f3991f50443f927844d3720e4625e9",
+    "immutable": false,
+    "description": "Long term memory for AI agents.",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "56f0e287ed275cc4d99c7c514a0438782d95cbdee5dab5b820807e12eef71a9c",
+      "aarch64-unknown-linux-gnu": "41f1a7e0c61b67d77cc07f39e7658d9e5697054cf37dd74e53615af2e3c78077",
+      "aarch64-apple-darwin": "892b42dfb2d73a7a183406987c39ee4cfbb57c52b25302a0f2cc973c63a805cf",
+      "x86_64-pc-windows-msvc": "eb5fe981437ba79c249b5a4da6e9264872327d6f12e4cbb54cf4bb21b073629b",
+      "aarch64-pc-windows-msvc": "121ebae0b6d1f9d2f94638fd5d5bd0c2da605f8193d0252e7c8afa31bffea96a"
+    }
+  },
+  "nosfry": {
+    "version": "0.3.0",
+    "tag": "v0.3.0",
+    "commit": "95bccbcbe99f956fe572ba0466abbeb1941e6f6c",
+    "immutable": false,
+    "description": "High-performance Nostr relay in Rust, for bare-metal servers and Cloudflare Workers.",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "c10776c725ff25f3a6533b32a3027a43b8c3b06f60f03f094906506fc072655a",
+      "aarch64-unknown-linux-gnu": "9f2739294e9f594d2bf474d573f5746c33595aa52f2712dc4c5433a066324c8e",
+      "aarch64-apple-darwin": "2b82602612c856277a94df829f9b17152d4cab83af6cfd879f3e8adc7c9bbad4"
+    }
+  },
+  "pun": {
+    "version": "0.1.0",
+    "tag": "v0.1.0",
+    "commit": "9030d73ec8b5b63353e01e2338b19be822605b07",
+    "immutable": false,
+    "description": "P2P pipe in Rust. Punch through NAT and send",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "c19cd59deba87dd0728c2878b0cc45b5c6b0eff50759f86ce27df7507d09be71",
+      "aarch64-unknown-linux-gnu": "f7ff8f9f17810ec761129933642efc072b62e4119981c30ef1cf12614dcaf6c2",
+      "aarch64-apple-darwin": "63957d5b013f193936defae86e1fa37b3479cc29bf0daf7e07ee1c3ec5f282fd",
+      "x86_64-pc-windows-msvc": "7126a1b2eb9838e009e9c2a5b5c0b68a418461a70144570e4cbccffee650f651",
+      "aarch64-pc-windows-msvc": "e427fba61ec73343603b79dcc28dd9f76f0c277243c991e821e1c5bf21957d0f"
+    }
+  },
+  "siwx": {
+    "version": "0.6.1",
+    "tag": "v0.6.1",
+    "commit": "256e9eb3c548458356466720e5d2ee079e20ce5d",
+    "immutable": false,
+    "description": "Rust SDK for CAIP-122: Chain-Agnostic Wallet Authentication.",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "86e9709a9cf080fc5653c242f0bfe0cb77e250809cfb7dbd1788f99e659792dd",
+      "aarch64-unknown-linux-gnu": "141e9f0ebf3d9ca368220a2891acd778ea3e3b8bb17a8bf689296d4096c09617",
+      "aarch64-apple-darwin": "5945f9cc4f0968cd7cf57829b4627ef45e03380802e096cbddf0c2b00a834eec",
+      "x86_64-pc-windows-msvc": "40eaa3f0b0973225d084828981ef551009846ce1259960b0a364be5e3f43d1ff",
+      "aarch64-pc-windows-msvc": "46cd2110e745b152fe7f56d32cff8541691be97380dfa42e7df15b42dab71dbf"
+    }
+  },
+  "skills": {
+    "version": "0.8.3",
+    "tag": "v0.8.3",
+    "commit": "b5705f4dc67b5b9673fe503450e8cd990dfb8e48",
+    "immutable": false,
+    "description": "Blazing-fast Vercel Skills CLI, reborn in Rust. 100% command parity, zero compromises.",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "d0d90a9c6303b02563d2eada580c50850e1402407cba34bf2ecc72bd461d5a84",
+      "aarch64-unknown-linux-gnu": "86f6ff5132613deddb9d862895419ee57710c9b85ec915bb9fe449dbfd96a335",
+      "aarch64-apple-darwin": "16187a96f299329034d904cb9f38ceda6e3ed02b6b13cf05f6683ff9be84dca5",
+      "x86_64-pc-windows-msvc": "3cf7e2eb66b2828f8bd8b64c44dc3d7ccb0139f90a580d5335e358a03c25e526",
+      "aarch64-pc-windows-msvc": "1217a31c8afedf49f066e82106c27afa2357028b2b02e135bb356d7645d0a6a8"
+    }
+  },
+  "xmtp": {
+    "version": "0.9.3",
+    "tag": "v0.9.3",
+    "commit": "174fa82055bc5a9fb06f71125ad8714266f3c9dc",
+    "immutable": false,
+    "description": "Safe, ergonomic Rust client SDK for the XMTP messaging protocol.",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "94efb126e835ec55448abfc11faa9552fe43d77dd2d5b51430a1d01e06a8db3c",
+      "aarch64-unknown-linux-gnu": "28f7002236303c7f25b0905e560a788575710968ae3f5bb6fa28ade6568bb0dd",
+      "aarch64-apple-darwin": "ed3d73d0bdde2dfb684abb6ddd673d9b4fdb3200325b685768f2f9220b41827d",
+      "x86_64-pc-windows-msvc": "53250ec177414657528464e0960ebe391d806e31aef14669be79590506d3b0f7",
+      "aarch64-pc-windows-msvc": "746ca353d2ccb31e869f4f3b60c3fe3146e4c5fe9f7aa77faaf396b22795297c"
+    }
+  }
+}
