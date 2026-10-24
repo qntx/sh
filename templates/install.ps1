@@ -39,19 +39,19 @@ $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # Exit code carried through a thrown exception's TargetObject.
-function New-InstallError([int]$Code, [string]$Message) {
+function Get-InstallError([int]$Code, [string]$Message) {
     [Management.Automation.ErrorRecord]::new(
         [Exception]::new($Message), 'qntx', 'NotSpecified', $Code)
 }
 
-function New-PlatformError([string]$Message) {
+function Get-PlatformError([string]$Message) {
     $hint = if ($Package) {
         "install from source: cargo install $Package --locked"
     }
     else {
         "build from source: https://github.com/$Repo"
     }
-    New-InstallError 3 "$Message`n$hint"
+    Get-InstallError 3 "$Message`n$hint"
 }
 
 function Write-Status([string]$Verb, [string]$Msg) {
@@ -95,10 +95,10 @@ Environment:
 function Resolve-InstallDir([string]$Dir) {
     if (-not $Dir) { $Dir = Join-Path $env:USERPROFILE '.local\bin' }
     if (-not [IO.Path]::IsPathRooted($Dir)) {
-        throw (New-InstallError 1 "install dir must be an absolute path: $Dir")
+        throw (Get-InstallError 1 "install dir must be an absolute path: $Dir")
     }
     if ($Dir -match '\.\.' -or $Dir -match '[\x00-\x1F]') {
-        throw (New-InstallError 1 "unsafe install dir: $Dir")
+        throw (Get-InstallError 1 "unsafe install dir: $Dir")
     }
     $Dir
 }
@@ -108,10 +108,10 @@ function Get-Target {
     switch ($arch) {
         'X64' { $t = 'x86_64-pc-windows-msvc' }
         'Arm64' { $t = 'aarch64-pc-windows-msvc' }
-        default { throw (New-PlatformError "unsupported architecture: $arch") }
+        default { throw (Get-PlatformError "unsupported architecture: $arch") }
     }
     if (-not $script:Pinned -and -not $Sha256.Contains($t)) {
-        throw (New-PlatformError "$Tool has no prebuilt binary for $t")
+        throw (Get-PlatformError "$Tool has no prebuilt binary for $t")
     }
     $t
 }
@@ -206,23 +206,23 @@ function Install-Tool {
                 Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset.sha256" -OutFile $sumPath | Out-Null
             }
             catch {
-                throw (New-InstallError 1 "no $Ver asset for this platform")
+                throw (Get-InstallError 1 "no $Ver asset for this platform")
             }
             $line = (Get-Content -LiteralPath $sumPath -TotalCount 1).TrimEnd()
             # Same forms as the sh template: `<hash>  <name>`,
             # `<hash> *<name>`, and `dist/<name>` in place of `<name>`.
             if ($line -notmatch "^([0-9a-f]{64}) [ *](\S+)$") {
-                throw (New-InstallError 1 "malformed .sha256 file for $asset")
+                throw (Get-InstallError 1 "malformed .sha256 file for $asset")
             }
             $hash = $Matches[1]
             $name = $Matches[2]
             if ($name -ne $asset -and $name -ne "dist/$asset") {
-                throw (New-InstallError 1 "bad .sha256 file for $asset")
+                throw (Get-InstallError 1 "bad .sha256 file for $asset")
             }
         }
         else {
             $hash = $Sha256[$t]
-            if (-not $hash) { throw (New-InstallError 1 "no embedded sha256 for $t") }
+            if (-not $hash) { throw (Get-InstallError 1 "no embedded sha256 for $t") }
         }
 
         Write-Status 'Downloading' "$Tool $Ver ($t)"
@@ -230,14 +230,14 @@ function Install-Tool {
         Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile $ap | Out-Null
 
         $got = (Get-FileHash -LiteralPath $ap -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ($got -ne $hash) { throw (New-InstallError 1 "sha256 mismatch for $asset") }
+        if ($got -ne $hash) { throw (Get-InstallError 1 "sha256 mismatch for $asset") }
         Write-Status 'Verified' "sha256 $($got.Substring(0, 12))...$($got.Substring($got.Length - 8))"
 
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $zip = [IO.Compression.ZipFile]::OpenRead($ap)
         try {
             $member = $zip.Entries | Where-Object { $_.FullName -eq "$Tool.exe" } | Select-Object -First 1
-            if (-not $member) { throw (New-InstallError 1 "archive has no $Tool.exe member") }
+            if (-not $member) { throw (Get-InstallError 1 "archive has no $Tool.exe member") }
             [IO.Compression.ZipFileExtensions]::ExtractToFile($member, (Join-Path $tmp "$Tool.exe"), $true)
         }
         finally {
@@ -246,7 +246,7 @@ function Install-Tool {
 
         $out = & (Join-Path $tmp "$Tool.exe") --version 2>&1 | Out-String
         if ($out -notmatch "(^|[^0-9.])$([regex]::Escape($Ver))([^0-9.]|$)") {
-            throw (New-InstallError 1 "self-check failed: $Tool --version did not report $Ver")
+            throw (Get-InstallError 1 "self-check failed: $Tool --version did not report $Ver")
         }
         Write-Status 'Verified' "runs $Ver"
 
@@ -325,7 +325,7 @@ try {
     if ($Pin) { $target = $Pin; $script:Pinned = $true }
     elseif ($envVersion) { $target = $envVersion; $script:Pinned = $true }
     if ($target -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
-        throw (New-InstallError 2 "version must be x.y.z[-suffix]: $target")
+        throw (Get-InstallError 2 "version must be x.y.z[-suffix]: $target")
     }
     if (-not $InstallDir) { $InstallDir = $envDir }
     if ($envNoPath -eq '1') { $NoModifyPath = [switch]::Present }
