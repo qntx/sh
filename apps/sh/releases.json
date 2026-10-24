@@ -1,16 +1,18 @@
 {
   "kobe": {
-    "version": "6.0.0",
-    "tag": "v6.0.0",
-    "commit": "ca1ee97837a93d2676f96402c695c7aa3fdd0318",
-    "immutable": false,
+    "version": "7.0.0",
+    "tag": "v7.0.0",
+    "commit": "dad6a57a45f9ed8f32c48ea331415647a85f1a46",
+    "immutable": true,
     "description": "Pure offline HD wallet generator: BIP-39 mnemonic to keys and addresses for 20 chains",
     "assets": {
-      "x86_64-unknown-linux-gnu": "351864eae7b95e89af563bfa1ad9708f36577391462d25ce1709becb4a15fa9b",
-      "aarch64-unknown-linux-gnu": "58760220da16dd1b3572587461f8037cef6e2d5f717e107154dd00097eed9b7f",
-      "aarch64-apple-darwin": "5b42d46bac45152d246c67314383b0eb7c185dad55d1a9b579dacbb49e154310",
-      "x86_64-pc-windows-msvc": "0e20d0e177c2cc0629e52312efdc8511bf19684e51845616cf671c660144f6a1",
-      "aarch64-pc-windows-msvc": "c3360e8063f1dba34d486df09d51b3fee68fdee1d40bee78c43549f3b4356e4f"
+      "x86_64-unknown-linux-gnu": "a010b887aa1158c67d9d26b3fbed6ea23c969613507c006304916edda3049610",
+      "aarch64-unknown-linux-gnu": "16dc2869c6b7d756644a002a0d2c1f843364193281b5f119a026a84ce0f099c6",
+      "x86_64-unknown-linux-musl": "90edbd36d9af4711bccf6589225bd7e619b03d944ec3e44cc7b438fe882bae5a",
+      "aarch64-unknown-linux-musl": "b98d4277c7b16fd216f18d7cdf8cd6e06bd0dba9b99f346d6d1c1b880c44f710",
+      "aarch64-apple-darwin": "5757cd0964d0a5602e143bf1b379635c036a7016366baad99f157252bdf612f7",
+      "x86_64-pc-windows-msvc": "1130c011bb1e356514653e1b4adf0bd19f0b714b56b9e73524b0310bc02c0210",
+      "aarch64-pc-windows-msvc": "89a0ee96163b35c89bd0ee45db572b794f23126ed756fb193ce70f76f6d51d5d"
     }
   },
   "nosfry": {
