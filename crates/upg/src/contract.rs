@@ -24,6 +24,7 @@ fn run_script(script: &Path, args: &[String], home: &Path) -> std::process::Outp
         .arg("sh")
         .args(args)
         .env("HOME", home)
+        .env("XDG_CONFIG_HOME", home.join(".config"))
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -45,7 +46,10 @@ fn check_returns_semver_and_install_roundtrips() {
     let out = run_script(&script, &["--check".to_owned()], &home);
     assert!(out.status.success(), "check failed");
     let version = String::from_utf8_lossy(&out.stdout);
-    let latest = semver::Version::parse(version.trim()).expect("--check output is semver");
+    assert!(
+        semver::Version::parse(version.trim()).is_ok(),
+        "--check output is not semver: {version}"
+    );
 
     // Install through the same runner invocation the crate uses.
     let install = run_script(
@@ -78,6 +82,5 @@ fn check_returns_semver_and_install_roundtrips() {
     );
     assert!(rerun.status.success(), "idempotent rerun failed");
 
-    let _latest = latest;
-    let _done = std::fs::remove_dir_all(&home);
+    std::fs::remove_dir_all(&home).expect("remove temp dir");
 }

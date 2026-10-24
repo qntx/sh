@@ -166,7 +166,6 @@ fn home_dir() -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
