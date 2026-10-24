@@ -18,8 +18,10 @@
     "typecheck": "vp run -r typecheck && tsc --noEmit",
     "build": "vp run -r build",
     "test": "vp run -r test",
-    "sync": "vp run sh#sync",
-    "prepare": "vp config"
+    "sync": "vp run sh#sync && vp run sk#sync",
+    "prepare": "vp config",
+    "test:contract": "UPG_CONTRACT_SCRIPT=$PWD/apps/sh/dist/kobe.sh cargo test -p upg -- --include-ignored",
+    "release": "bumpp"
   },
   "devDependencies": {
     "@qntx/oxfmt": "1.1.1",
@@ -27,6 +29,7 @@
     "@qntx/tsconfig": "1.0.1",
     "@taplo/cli": "0.7.0",
     "@types/node": "26.6.5",
+    "bumpp": "12.3.0",
     "typescript": "7.0.2",
     "vite": "npm:@voidzero-dev/vite-plus-core@1.3.0",
     "vite-plus": "1.3.0"

@@ -15,6 +15,8 @@ const config: UserConfig = defineConfig({
       "target/**",
       "bun.lock",
       "**/dist/**",
+      // Skill bytes are hash-locked to upstream — never reformat them.
+      "apps/*/content/**",
     ],
   },
   lint: merge(base, {

@@ -36,6 +36,7 @@ export type Repo = {
   private: boolean;
   archived: boolean;
   description: string;
+  default_branch: string;
 };
 
 export type Commit = {
@@ -134,6 +135,7 @@ export async function repo(name: string): Promise<Repo> {
     private: bool(raw, "private", name),
     archived: bool(raw, "archived", name),
     description: typeof description === "string" ? description : "",
+    default_branch: str(raw, "default_branch", name),
   };
 }
 
@@ -217,4 +219,29 @@ export async function fileAtRef(
     }
     throw error;
   }
+}
+
+export type DirEntry = {
+  name: string;
+  type: string;
+  path: string;
+};
+
+/// List a directory's entries at a ref via the contents API.
+export async function listDir(name: string, path: string, ref: string): Promise<DirEntry[]> {
+  const res = await request(`${API}/repos/${name}/contents/${path}?ref=${ref}`);
+  const raw: unknown = await res.json();
+  if (!Array.isArray(raw)) {
+    throw new TypeError(`${name}/${path}@${ref}: not a directory`);
+  }
+  return raw.map((e: unknown) => {
+    if (!isObj(e)) {
+      throw new TypeError(`${name}: bad dir entry`);
+    }
+    return {
+      name: str(e, "name", name),
+      type: str(e, "type", name),
+      path: str(e, "path", name),
+    };
+  });
 }

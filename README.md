@@ -2,7 +2,7 @@
 
 # sh
 
-[sh.qntx.org](https://sh.qntx.org): the static, build-time-rendered install-script service for QuantX CLIs — plus the shared machinery behind it in `apps/` and `packages/`.
+[sh.qntx.org](https://sh.qntx.org): the static, build-time-rendered install-script service for QuantX CLIs; [sk.qntx.org](https://sk.qntx.org): the agent-skills discovery service — plus the shared machinery behind them in `apps/` and `packages/`.
 
 Changes are tracked in [CHANGELOG.md](CHANGELOG.md); contributor invariants and the local gate live in [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
