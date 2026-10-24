@@ -1,5 +1,5 @@
 {
-  "title": "sh",
-  "description": "Installer service for QuantX CLIs.",
-  "pages": ["index", "install", "protocol"]
+  "title": "qntx/sh",
+  "description": "The QuantX installer monorepo.",
+  "pages": ["index", "sh"]
 }

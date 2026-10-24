@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@qntx/github": ["../../packages/github/src/index.ts"]
+    }
+  },
+  "include": ["src", "tests"]
+}

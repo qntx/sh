@@ -1,14 +1,21 @@
+<!-- markdownlint-disable MD033 MD041 -->
+
 # sh
 
-Static install-script service for QuantX command-line tools.
+[sh.qntx.org](https://sh.qntx.org): the static, build-time-rendered install-script service for QuantX CLIs — plus the shared machinery behind it in `apps/` and `packages/`.
 
-Deployed at [sh.qntx.org](https://sh.qntx.org). See [docs/](docs/).
+Changes are tracked in [CHANGELOG.md](CHANGELOG.md); contributor invariants and the local gate live in [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Licensed under the MIT License ([LICENSE](LICENSE) or <https://opensource.org/licenses/MIT>).
+Licensed under either of:
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this project shall be licensed as above, without any additional terms or conditions.
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT License ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this project shall be dual-licensed as above, without any additional terms or conditions.
 
 ---
 

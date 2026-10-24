@@ -1,5 +1,5 @@
 # Adopted releases must be at least 7 days old (cooldown). Minor and patch
-# updates are grouped per ecosystem so the open-PR limit never fills up.
+# updates are grouped per ecosystem; cargo joins when the upg crate lands.
 version: 2
 updates:
   - package-ecosystem: "bun"

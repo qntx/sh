@@ -1,0 +1,28 @@
+{
+  "kobe": {
+    "version": "6.0.0",
+    "tag": "v6.0.0",
+    "commit": "ca1ee97837a93d2676f96402c695c7aa3fdd0318",
+    "immutable": false,
+    "description": "Pure offline HD wallet generator: BIP-39 mnemonic to keys and addresses for 20 chains",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "351864eae7b95e89af563bfa1ad9708f36577391462d25ce1709becb4a15fa9b",
+      "aarch64-unknown-linux-gnu": "58760220da16dd1b3572587461f8037cef6e2d5f717e107154dd00097eed9b7f",
+      "aarch64-apple-darwin": "5b42d46bac45152d246c67314383b0eb7c185dad55d1a9b579dacbb49e154310",
+      "x86_64-pc-windows-msvc": "0e20d0e177c2cc0629e52312efdc8511bf19684e51845616cf671c660144f6a1",
+      "aarch64-pc-windows-msvc": "c3360e8063f1dba34d486df09d51b3fee68fdee1d40bee78c43549f3b4356e4f"
+    }
+  },
+  "nosfry": {
+    "version": "0.3.0",
+    "tag": "v0.3.0",
+    "commit": "95bccbcbe99f956fe572ba0466abbeb1941e6f6c",
+    "immutable": false,
+    "description": "High-performance Nostr relay in Rust, for bare-metal servers and Cloudflare Workers.",
+    "assets": {
+      "x86_64-unknown-linux-gnu": "c10776c725ff25f3a6533b32a3027a43b8c3b06f60f03f094906506fc072655a",
+      "aarch64-unknown-linux-gnu": "9f2739294e9f594d2bf474d573f5746c33595aa52f2712dc4c5433a066324c8e",
+      "aarch64-apple-darwin": "2b82602612c856277a94df829f9b17152d4cab83af6cfd879f3e8adc7c9bbad4"
+    }
+  }
+}

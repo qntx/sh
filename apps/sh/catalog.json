@@ -1,0 +1,12 @@
+{
+  "tools": {
+    "kobe": {
+      "repo": "qntx/kobe",
+      "package": "kobe-cli"
+    },
+    "nosfry": {
+      "repo": "qntx/nosfry",
+      "package": "nosfry"
+    }
+  }
+}

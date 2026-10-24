@@ -1,0 +1,23 @@
+{
+  "name": "sh",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "bun src/build.ts",
+    "sync": "bun src/sync.ts",
+    "test": "vp test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@qntx/github": "workspace:*"
+  },
+  "devDependencies": {
+    "@qntx/tsconfig": "1.0.1",
+    "@types/node": "26.6.5",
+    "typescript": "7.0.2",
+    "vite-plus": "1.3.0",
+    "wrangler": "4.151.1"
+  }
+}
