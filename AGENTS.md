@@ -67,8 +67,6 @@ Sync the release lock (needs `GITHUB_TOKEN`, e.g. `$(gh auth token)`):
 cd apps/sh && bun run sync          # SYNC_TOOL=<key> SYNC_FORCE=true
 ```
 
-Preview a deploy (no traffic switch):
-
-```bash
-cd apps/sh && npx wrangler versions upload
-```
+Previews: `bunx wrangler versions upload` from an app dir. Production
+deploys happen only from the `Deploy` workflow (`.github/workflows/deploy.yml`)
+— never run `wrangler deploy` locally.
