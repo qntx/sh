@@ -1,8 +1,9 @@
 // Lock-file model for skills.lock.json + the sync resolution logic that
 // maps a source repo to a ref/commit and a validated skill set.
 
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+
+import { isRecord } from "@qntx/sync";
 
 export type SourceLock = {
   ref: string;
@@ -12,16 +13,8 @@ export type SourceLock = {
 
 export type Lock = Record<string, SourceLock>;
 
-export function isObj(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
 export function fail(msg: string): never {
   throw new Error(msg);
-}
-
-export function sha256hex(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
 }
 
 export function loadLock(path: string): Lock {
@@ -29,12 +22,12 @@ export function loadLock(path: string): Lock {
     return {};
   }
   const raw: unknown = JSON.parse(readFileSync(path, "utf8"));
-  if (!isObj(raw)) {
+  if (!isRecord(raw)) {
     fail(`skills.lock.json: root must be an object`);
   }
   const out: Lock = {};
   for (const [repo, entry] of Object.entries(raw)) {
-    if (!isObj(entry)) {
+    if (!isRecord(entry)) {
       fail(`skills.lock.json ${repo}: entry must be an object`);
     }
     const { ref, commit, skills } = entry;
@@ -44,7 +37,7 @@ export function loadLock(path: string): Lock {
     if (typeof commit !== "string" || !/^[0-9a-f]{40}$/.test(commit)) {
       fail(`skills.lock.json ${repo}: commit must be a 40-hex sha`);
     }
-    if (typeof skills !== "object" || skills === null || Array.isArray(skills)) {
+    if (!isRecord(skills)) {
       fail(`skills.lock.json ${repo}: skills must be an object`);
     }
     const map: Record<string, string> = {};

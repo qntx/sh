@@ -195,7 +195,7 @@ export async function commit(name: string, ref: string): Promise<Commit> {
   return { sha: str(raw, "sha", name) };
 }
 
-/// File bytes at a ref via the contents API; undefined on 404.
+// File bytes at a ref via the contents API; undefined on 404.
 export async function fileAtRef(
   name: string,
   path: string,
@@ -227,7 +227,7 @@ export type DirEntry = {
   path: string;
 };
 
-/// List a directory's entries at a ref via the contents API.
+// List a directory's entries at a ref via the contents API.
 export async function listDir(name: string, path: string, ref: string): Promise<DirEntry[]> {
   const res = await request(`${API}/repos/${name}/contents/${path}?ref=${ref}`);
   const raw: unknown = await res.json();

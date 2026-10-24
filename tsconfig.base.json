@@ -11,6 +11,8 @@
     "declaration": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "isolatedDeclarations": true
+    "isolatedDeclarations": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true
   }
 }

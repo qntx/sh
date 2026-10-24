@@ -5,8 +5,10 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseCatalog, parseReleases } from "./catalog.ts";
-import type { Catalog, Releases } from "./catalog.ts";
+import { parseCatalog } from "./catalog.ts";
+import type { Catalog } from "./catalog.ts";
+import { parseReleases } from "./lock.ts";
+import type { Releases } from "./lock.ts";
 import {
   assertAscii,
   renderIndexPs1,

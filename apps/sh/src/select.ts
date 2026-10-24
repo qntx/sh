@@ -1,10 +1,11 @@
 // Pure release selection: pick the newest stable vX.Y.Z tag and validate
 // its asset set. No network — unit tests drive this with recorded fixtures.
 
-import type { Release } from "@qntx/github";
+import { STABLE_TAG_RE, latestStable } from "@qntx/sync";
+import type { Release } from "@qntx/sync";
 
-import { SHA256_RE, TAG_RE, TARGETS } from "./catalog.ts";
-import type { LockEntry } from "./catalog.ts";
+import { SHA256_RE, TARGETS } from "./catalog.ts";
+import type { LockEntry } from "./lock.ts";
 
 export class SelectError extends Error {
   constructor(msg: string) {
@@ -19,16 +20,6 @@ export function isWindows(target: string): boolean {
 
 export function assetName(bin: string, version: string, target: string): string {
   return `${bin}-${version}-${target}.${isWindows(target) ? "zip" : "tar.gz"}`;
-}
-
-type SemVer = {
-  major: number;
-  minor: number;
-  patch: number;
-};
-
-function compare(a: SemVer, b: SemVer): number {
-  return a.major - b.major || a.minor - b.minor || a.patch - b.patch;
 }
 
 export type Selected = {
@@ -66,33 +57,12 @@ export async function selectRelease(
   force: boolean,
   shaFileText: (release: Release, asset: string) => Promise<string> | string,
 ): Promise<Selected> {
-  let best: Release | undefined;
-  let bestV: SemVer | undefined;
-  for (const r of releases) {
-    if (r.draft || r.prerelease) {
-      continue;
-    }
-    const m = TAG_RE.exec(r.tag_name);
-    if (m === null) {
-      continue;
-    }
-    const major = m[1] ?? "0";
-    const minor = m[2] ?? "0";
-    const patch = m[3] ?? "0";
-    const v: SemVer = {
-      major: Number(major),
-      minor: Number(minor),
-      patch: Number(patch),
-    };
-    if (bestV === undefined || compare(v, bestV) > 0) {
-      best = r;
-      bestV = v;
-    }
-  }
-  if (best === undefined || bestV === undefined) {
+  const best = latestStable(releases);
+  const m = best === undefined ? null : STABLE_TAG_RE.exec(best.tag_name);
+  if (best === undefined || m === null) {
     throw new SelectError(`${repo}: no stable vX.Y.Z release`);
   }
-  const version = `${bestV.major}.${bestV.minor}.${bestV.patch}`;
+  const version = `${m[1] ?? "0"}.${m[2] ?? "0"}.${m[3] ?? "0"}`;
 
   const byName = new Map(best.assets.map((a) => [a.name, a]));
   // Any asset shaped like one of ours (<bin>-<version>-*) but not matching

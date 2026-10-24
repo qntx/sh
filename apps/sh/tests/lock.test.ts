@@ -4,8 +4,8 @@ import { join } from "node:path";
 
 import { describe, expect, test } from "vite-plus/test";
 
-import type { LockEntry } from "../src/catalog.ts";
-import { changed, loadReleases, mergeReleases } from "../src/lockops.ts";
+import type { LockEntry } from "../src/lock.ts";
+import { changed, loadReleases, mergeReleases } from "../src/lock.ts";
 
 const entry = (version: string, assets: Record<string, string>): LockEntry => ({
   version,
@@ -87,7 +87,7 @@ describe("pickToolKeys", () => {
   const keys = ["kobe", "nosfry"];
 
   test('undefined and "" both mean all tools', async () => {
-    const { pickToolKeys } = await import("../src/lockops.ts");
+    const { pickToolKeys } = await import("../src/lock.ts");
     expect(pickToolKeys(keys, undefined)).toStrictEqual(keys);
     expect(pickToolKeys(keys, "")).toStrictEqual(keys);
     expect(pickToolKeys(keys, "kobe")).toStrictEqual(["kobe"]);

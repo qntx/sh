@@ -12,7 +12,7 @@
 ```text
 apps/sh/          "sh" — the sh.qntx.org static site (templates, sync, build, dist/)
 apps/sk/          "sk" — the sk.qntx.org skills service (sources, sync, build, dist/)
-packages/github/  @qntx/github — private: minimal GitHub client, release selection, lock I/O
+packages/sync/  @qntx/sync — private: minimal GitHub client, release selection, lock I/O
 crates/upg/       upg — shared `upgrade` subcommand crate
 docs/             public docs tree mirrored to docs.qntx.org
 ```
@@ -56,15 +56,10 @@ cd apps/sh && bunx wrangler versions upload
 
 ## Deploy
 
-Production deploys happen only through the `Deploy` workflow
-(`.github/workflows/deploy.yml`): it runs on successful `CI` runs for
-pushes to `main`, after `sync` commits a lock update (via
-`workflow_call`), and on `workflow_dispatch`. It builds `apps/` and runs
-`bunx wrangler deploy` in each app, applying each `wrangler.jsonc`'s
-routes/custom domains declaratively. Required configuration:
-
-- secret `CLOUDFLARE_API_TOKEN`
-- repository variable `CLOUDFLARE_ACCOUNT_ID`
+Production: `bun run deploy` from the repo root after `main` is green — it
+builds every app and runs `wrangler deploy` in each. After the `Sync`
+workflow lands a lock update, run `bun run deploy` to publish it. Previews
+(no traffic switch): `bunx wrangler versions upload` from an app dir.
 
 ## Commits
 

@@ -5,9 +5,11 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { sha256Hex } from "@qntx/sync";
+
+import { fail, loadLock } from "./lock.ts";
 import { headers, indexJson, llmsTxt, redirects } from "./render.ts";
 import type { SkillEntry } from "./render.ts";
-import { fail, loadLock, sha256hex } from "./select.ts";
 import { validateSkill } from "./skill.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -40,7 +42,7 @@ function main(): void {
   for (const name of expected) {
     const file = join(CONTENT, name, "SKILL.md");
     const bytes = new Uint8Array(readFileSync(file));
-    const digest = sha256hex(bytes);
+    const digest = sha256Hex(bytes);
     if (digest !== lockedHashes.get(name)) {
       fail(`${name}: content sha256 does not match the lock`);
     }

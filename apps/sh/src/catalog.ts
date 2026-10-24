@@ -4,10 +4,7 @@
 export const KEY_RE: RegExp = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 export const REPO_RE: RegExp = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 export const PACKAGE_RE: RegExp = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
-export const VERSION_RE: RegExp = /^\d+\.\d+\.\d+$/;
-export const TAG_RE: RegExp = /^v(\d+)\.(\d+)\.(\d+)$/;
 export const SHA256_RE: RegExp = /^[0-9a-f]{64}$/;
-export const COMMIT_RE: RegExp = /^[0-9a-f]{40}$/;
 export const ENV_PREFIX_RE: RegExp = /^[A-Z0-9_]+$/;
 export const RESERVED_KEYS: ReadonlySet<string> = new Set(["index", "ps"]);
 
@@ -23,7 +20,6 @@ export const TARGETS = [
   "aarch64-pc-windows-msvc",
 ] as const;
 export type Target = (typeof TARGETS)[number];
-const TARGET_SET = new Set<string>(TARGETS);
 
 export type ToolSpec = {
   repo: string;
@@ -31,17 +27,6 @@ export type ToolSpec = {
 };
 
 export type Catalog = Record<string, ToolSpec>;
-
-export type LockEntry = {
-  version: string;
-  tag: string;
-  commit: string;
-  immutable: boolean;
-  description: string;
-  assets: Record<string, string>;
-};
-
-export type Releases = Record<string, LockEntry>;
 
 function fail(msg: string): never {
   throw new Error(msg);
@@ -105,8 +90,6 @@ export function parseCatalog(raw: unknown): Catalog {
   return catalog;
 }
 
-const LOCK_FIELDS = new Set(["version", "tag", "commit", "immutable", "description", "assets"]);
-
 export function sanitizeDescription(key: string, raw: unknown): string {
   const s = typeof raw === "string" ? raw : "";
   // Safe printable subset: reject control chars and shell-significant bytes.
@@ -114,67 +97,6 @@ export function sanitizeDescription(key: string, raw: unknown): string {
     fail(`releases ${key}: description contains unsafe characters`);
   }
   return s;
-}
-
-export function parseLockEntry(key: string, raw: unknown): LockEntry {
-  if (!isObject(raw)) {
-    fail(`releases ${key}: entry must be an object`);
-  }
-  for (const f of Object.keys(raw)) {
-    if (!LOCK_FIELDS.has(f)) {
-      fail(`releases ${key}: unknown field "${f}"`);
-    }
-  }
-  const { version, tag, commit, immutable, description, assets } = raw;
-  if (typeof version !== "string" || !VERSION_RE.test(version)) {
-    fail(`releases ${key}: version must match ${VERSION_RE}`);
-  }
-  if (typeof tag !== "string" || tag !== `v${version}`) {
-    fail(`releases ${key}: tag must be "v${version}"`);
-  }
-  if (typeof commit !== "string" || !COMMIT_RE.test(commit)) {
-    fail(`releases ${key}: commit must match ${COMMIT_RE}`);
-  }
-  if (typeof immutable !== "boolean") {
-    fail(`releases ${key}: immutable must be a boolean`);
-  }
-  const desc = sanitizeDescription(key, description);
-  if (!isObject(assets) || Object.keys(assets).length === 0) {
-    fail(`releases ${key}: assets must be a non-empty object`);
-  }
-  const assetMap: Record<string, string> = {};
-  for (const [t, h] of Object.entries(assets)) {
-    if (!TARGET_SET.has(t)) {
-      fail(`releases ${key}: unknown target "${t}"`);
-    }
-    if (typeof h !== "string" || !SHA256_RE.test(h)) {
-      fail(`releases ${key}: asset hash for "${t}" must match ${SHA256_RE}`);
-    }
-    assetMap[t] = h;
-  }
-  const entry: LockEntry = {
-    version,
-    tag,
-    commit,
-    immutable,
-    description: desc,
-    assets: assetMap,
-  };
-  return entry;
-}
-
-export function parseReleases(raw: unknown): Releases {
-  if (!isObject(raw)) {
-    fail("releases: root must be an object");
-  }
-  const releases: Releases = {};
-  for (const [key, entry] of Object.entries(raw)) {
-    if (!KEY_RE.test(key)) {
-      fail(`releases key "${key}": must match ${KEY_RE}`);
-    }
-    releases[key] = parseLockEntry(key, entry);
-  }
-  return releases;
 }
 
 export function envPrefix(tool: string): string {

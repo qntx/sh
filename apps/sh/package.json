@@ -7,11 +7,12 @@
   "scripts": {
     "build": "bun src/build.ts",
     "sync": "bun src/sync.ts",
+    "deploy": "wrangler deploy",
     "test": "vp test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@qntx/github": "workspace:*"
+    "@qntx/sync": "workspace:*"
   },
   "devDependencies": {
     "@qntx/tsconfig": "1.0.1",

@@ -22,11 +22,13 @@ import {
   repo as getRepo,
   writeIfChanged,
   latestStable,
-} from "@qntx/github";
-import type { Commit, DirEntry, Release, Repo } from "@qntx/github";
+  isRecord,
+  sha256Hex,
+} from "@qntx/sync";
+import type { Commit, DirEntry, Release, Repo } from "@qntx/sync";
 
-import { fail, isObj, loadLock, sha256hex } from "./select.ts";
-import type { Lock, SourceLock } from "./select.ts";
+import { fail, loadLock } from "./lock.ts";
+import type { Lock, SourceLock } from "./lock.ts";
 import { validateSkill } from "./skill.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -106,7 +108,7 @@ export async function syncSource(source: string, deps: Deps): Promise<SourceResu
     if (skill.fm.name in skills || e.name in skills) {
       fail(`${source}: duplicate skill name ${e.name}`);
     }
-    skills[e.name] = sha256hex(bytes);
+    skills[e.name] = sha256Hex(bytes);
     files.set(e.name, bytes);
   }
   /* oxlint-enable no-await-in-loop */
@@ -132,7 +134,7 @@ export function nextLock(sources: string[], results: SourceResult[]): Lock {
 
 function parseSources(path: string): string[] {
   const raw: unknown = JSON.parse(readFileSync(path, "utf8"));
-  if (!isObj(raw)) {
+  if (!isRecord(raw)) {
     fail("skills.json: root must be an object");
   }
   const { sources } = raw;

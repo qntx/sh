@@ -1,4 +1,4 @@
-import type { Release } from "@qntx/github";
+import type { Release } from "@qntx/sync";
 
 import type { Deps } from "../src/sync.ts";
 

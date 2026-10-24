@@ -11,13 +11,13 @@
 ## Architecture invariants
 
 - Vite+ (vp) monorepo: `apps/sh` is the sh.qntx.org static site,
-  `apps/sk` the sk.qntx.org skills service; `packages/github` is a
-  private shared package (never published).
+  `apps/sk` the sk.qntx.org skills service; `packages/sync`
+  (`@qntx/sync`) is the private shared sync toolkit (never published).
 - Static site: `bun run build` renders `apps/sh/dist/` offline and
   deterministically from `catalog.json` (human) + `releases.json`
   (sync-generated lock) + `templates/`. Nothing runs at request time.
 - Only the sync task (`bun run sync` in `apps/sh`, cron every 15 min)
-  calls the GitHub API, via `@qntx/github`; it locks the newest stable
+  calls the GitHub API, via `@qntx/sync`; it locks the newest stable
   `vX.Y.Z` tag, verifies every asset's `.sha256` (plus the API `digest`
   when present), inspects archives, and refuses a shrinking target set
   unless forced. Failures are atomic: nothing is written.
@@ -67,6 +67,7 @@ Sync the release lock (needs `GITHUB_TOKEN`, e.g. `$(gh auth token)`):
 cd apps/sh && bun run sync          # SYNC_TOOL=<key> SYNC_FORCE=true
 ```
 
-Previews: `bunx wrangler versions upload` from an app dir. Production
-deploys happen only from the `Deploy` workflow (`.github/workflows/deploy.yml`)
-— never run `wrangler deploy` locally.
+Preview (no traffic switch): `bunx wrangler versions upload` from an app
+dir. Production: `bun run deploy` from the repo root — it builds every app
+and runs `wrangler deploy` in each; run it after `main` is green and after
+the `Sync` workflow lands a lock update.

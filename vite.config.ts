@@ -2,7 +2,7 @@ import { defineConfig } from "vite-plus";
 import type { UserConfig } from "vite-plus";
 
 import { fmt } from "@qntx/oxfmt";
-import base, { merge } from "@qntx/oxlint";
+import { config as lintPreset, merge } from "@qntx/oxlint";
 
 const config: UserConfig = defineConfig({
   staged: { "*": "vp check --fix" },
@@ -14,12 +14,13 @@ const config: UserConfig = defineConfig({
       "**/*.toml",
       "target/**",
       "bun.lock",
-      "**/dist/**",
+      // Generated static sites.
+      "apps/*/dist/**",
       // Skill bytes are hash-locked to upstream — never reformat them.
-      "apps/*/content/**",
+      "apps/sk/content/**",
     ],
   },
-  lint: merge(base, {
+  lint: merge(lintPreset, {
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     rules: {
       "vite-plus/prefer-vite-plus-imports": "error",

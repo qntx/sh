@@ -2,7 +2,7 @@
 
 import { parseDocument } from "yaml";
 
-import { isObj } from "./select.ts";
+import { isRecord } from "@qntx/sync";
 
 export const NAME_RE: RegExp = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const MAX_FILE = 256 * 1024;
@@ -61,7 +61,7 @@ export function validateSkill(dirName: string, bytes: Uint8Array): Skill {
     fail(`${dirName}: YAML frontmatter error: ${doc.errors[0]?.message ?? "unknown"}`);
   }
   const raw: unknown = doc.toJS();
-  if (!isObj(raw)) {
+  if (!isRecord(raw)) {
     fail(`${dirName}: frontmatter must be a mapping`);
   }
   const fm = raw;
@@ -102,7 +102,7 @@ export function validateSkill(dirName: string, bytes: Uint8Array): Skill {
   const { metadata } = fm;
   const md: Record<string, string> = {};
   if (metadata !== undefined) {
-    if (!isObj(metadata)) {
+    if (!isRecord(metadata)) {
       fail(`${dirName}: metadata must be a mapping of string to string`);
     }
     for (const [k, v] of Object.entries(metadata)) {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import type { LockEntry } from "../src/catalog.ts";
+import type { LockEntry } from "../src/lock.ts";
 import { selectRelease } from "../src/select.ts";
 import { H, assetSet, fails, rel, sums } from "./fixtures/releases.ts";
 
