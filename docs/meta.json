@@ -1,5 +1,5 @@
 {
   "title": "qntx/sh",
   "description": "The QuantX installer monorepo.",
-  "pages": ["index", "sh"]
+  "pages": ["index", "sh", "sk", "upg"]
 }

@@ -1,0 +1,27 @@
+[package]
+name                   = "upg"
+description            = "Self-upgrade helper for QuantX CLIs: re-runs the official sh.qntx.org installer."
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+homepage.workspace     = true
+authors.workspace      = true
+keywords.workspace     = true
+categories.workspace   = true
+readme                 = "README.md"
+
+[features]
+default = []
+clap    = ["dep:clap"]
+
+[dependencies]
+semver.workspace     = true
+serde.workspace      = true
+serde_json.workspace = true
+thiserror.workspace  = true
+clap                 = { workspace = true, optional = true }
+
+[lints]
+workspace = true

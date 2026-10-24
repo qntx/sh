@@ -10,8 +10,9 @@
 
 ## Architecture invariants
 
-- Vite+ (vp) monorepo: `apps/sh` is the sh.qntx.org static site;
-  `packages/github` is a private shared package (never published).
+- Vite+ (vp) monorepo: `apps/sh` is the sh.qntx.org static site,
+  `apps/sk` the sk.qntx.org skills service; `packages/github` is a
+  private shared package (never published).
 - Static site: `bun run build` renders `apps/sh/dist/` offline and
   deterministically from `catalog.json` (human) + `releases.json`
   (sync-generated lock) + `templates/`. Nothing runs at request time.
@@ -51,6 +52,13 @@ sh apps/sh/tests/e2e/unix.sh apps/sh/dist/kobe.sh   # e2e on Unix
 #   pwsh -NoProfile -File apps/sh/tests/e2e/windows.ps1
 #   Invoke-ScriptAnalyzer on apps/sh/dist/*.ps1 + apps/sh/tests/e2e/windows.ps1
 npx --yes markdownlint-cli2@0.23.3 "*.md" "docs/**/*.mdx"
+bun run test:contract                         # needs apps/sh/dist built
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo clippy --workspace --all-targets --no-default-features -- -D warnings
+cargo test --workspace --all-features
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
+cargo deny check
 ```
 
 Sync the release lock (needs `GITHUB_TOKEN`, e.g. `$(gh auth token)`):

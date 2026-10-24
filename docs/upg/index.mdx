@@ -1,0 +1,38 @@
+---
+title: upg
+description: The shared upgrade subcommand that re-runs the official sh.qntx.org installer.
+---
+
+`upg` (crates.io `upg`) is the Rust crate every QuantX CLI links to expose
+an identical `upgrade` subcommand. It never downloads archives or verifies
+hashes itself — it spawns `curl`/`wget` (Unix) or `powershell.exe`
+(Windows) and the installer does all of that.
+
+## Integration
+
+```rust
+// a clap Subcommand variant
+#[command(visible_alias = "update")]
+Upgrade(upg::Args),
+
+// dispatch
+println!("{}", upg::run(&TOOL, &args)?);
+```
+
+`Args` accepts `--check`, `--version X.Y.Z`, `--force`.
+
+## Behaviour
+
+| Situation                               | Result                                               |
+| --------------------------------------- | ---------------------------------------------------- |
+| `--check`                               | `Available` / `UpToDate` for any install method      |
+| sh.qntx.org receipt matches the exe dir | installer re-run in place; `Upgraded` / `UpToDate`   |
+| exe under `$CARGO_HOME/bin`             | `Cargo { command }` hint                             |
+| anything else                           | `Error::Unmanaged` with the one-line install command |
+| installer exit 3                        | `Error::Unsupported`                                 |
+| installer non-zero                      | `Error::Installer { code }`                          |
+
+The install dir comes from the receipt at
+`${XDG_CONFIG_HOME:-$HOME/.config}/qntx/receipts/<tool>.json` (Unix) or
+`%LOCALAPPDATA%\qntx\receipts\<tool>.json` (Windows). Child stdout is
+redirected to stderr so callers may print the `Report` as JSON on stdout.

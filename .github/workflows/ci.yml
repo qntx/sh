@@ -21,8 +21,29 @@ env:
 jobs:
   ci:
     uses: qntx/workflows/.github/workflows/ci-bun.yml@v2
+    with:
+      rust: true
+      scripts: test:contract
     permissions:
       contents: read
+
+  rust:
+    uses: qntx/workflows/.github/workflows/ci-rust.yml@v2
+    permissions:
+      contents: read
+    with:
+      # rust-version omitted: rust-toolchain.toml pins the toolchain.
+      deny: true
+      doc: true
+
+  rust-minimal:
+    uses: qntx/workflows/.github/workflows/ci-rust.yml@v2
+    permissions:
+      contents: read
+    with:
+      packages: upg
+      features: --no-default-features
+      package-check: true
 
   shell:
     runs-on: ubuntu-24.04

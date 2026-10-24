@@ -1,0 +1,5 @@
+{
+  "title": "upg",
+  "description": "Self-upgrade helper for QuantX CLIs through sh.qntx.org.",
+  "pages": ["index"]
+}

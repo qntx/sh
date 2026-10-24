@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Monorepo restructure (Vite+ workspaces): `apps/sh` static site,
   `packages/github` shared client/release/lock helpers, `crates/` for the
   upcoming `upg` crate.
+- `apps/sk` — sk.qntx.org: an agent-skills discovery endpoint serving
+  hash-locked `SKILL.md` files synced from source repos (`qntx/kobe`).
+- `upg` 0.1.0 — `crates/upg`: the shared `upgrade` subcommand for QuantX
+  CLIs; re-runs the sh.qntx.org installer, detects script-/cargo-/unmanaged
+  installs, and reports `Report`/`Action` outcomes.
 
 ### Changed
 

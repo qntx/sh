@@ -1,0 +1,33 @@
+---
+title: sk.qntx.org
+description: Agent skills discovery endpoint serving locked SKILL.md files for QuantX tools.
+---
+
+`sk.qntx.org` is a static site that serves the
+[agent skills](https://agentskills.io) (`SKILL.md`) shipped by QuantX
+projects, pinned to a synced lock of refs and SHA-256 digests.
+
+## Discovery
+
+- `GET /.well-known/agent-skills/index.json` — the
+  [discovery 0.2.0](https://schemas.agentskills.io/discovery/0.2.0/schema.json)
+  index: name, description, canonical URL and `sha256:` digest per skill.
+- `GET /<name>` — the `SKILL.md` bytes, `Content-Type: text/markdown`, with
+  a `Link: <...>; rel="canonical"` header pointing at the well-known path.
+- `GET /llms.txt` — an [llms.txt](https://llmstxt.org) summary (also served
+  at `/`).
+
+## Install
+
+```sh
+npx skills add https://sk.qntx.org     # install every advertised skill
+curl https://sk.qntx.org/kobe          # fetch the kobe skill directly
+```
+
+## Integrity
+
+`apps/sk/skills.lock.json` pins each source repo to a stable `vX.Y.Z` tag
+(or a commit SHA when no release exists) and every `SKILL.md` to a SHA-256
+digest. `bun run build` refuses to render when the bytes on disk do not
+match the lock, and `index.json` carries the same digest so clients can
+verify what they fetched.
