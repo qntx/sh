@@ -14,6 +14,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { parseCatalog, sanitizeDescription } from "./catalog.ts";
 import type { LockEntry } from "./catalog.ts";
@@ -21,7 +22,7 @@ import * as gh from "./github.ts";
 import { changed, loadReleases, mergeReleases } from "./lockops.ts";
 import { assetName, isWindows, selectRelease } from "./select.ts";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 function sha256(buf: Uint8Array): string {
   return createHash("sha256").update(buf).digest("hex");

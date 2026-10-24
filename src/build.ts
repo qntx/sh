@@ -4,6 +4,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { parseCatalog, parseReleases } from "./catalog.ts";
 import type { Catalog, Releases } from "./catalog.ts";
@@ -16,7 +17,7 @@ import {
   substitute,
 } from "./render.ts";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const DIST = join(ROOT, "dist");
 
 function sha256file(path: string): string {
