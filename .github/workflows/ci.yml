@@ -107,7 +107,7 @@ jobs:
           $r | Format-Table -AutoSize
           $r2 = Invoke-ScriptAnalyzer -Path dist/bux.ps1,tools/bux/install.ps1 -Severity Error
           $r2 | Format-Table -AutoSize
-          if ($r -or $r2) { exit 1 }
+          if ($r.Count -gt 0 -or $r2.Count -gt 0) { exit 1 }
 
   e2e:
     strategy:
