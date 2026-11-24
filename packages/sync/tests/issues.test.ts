@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import { planIssues, subjectsFrom } from "../src/issues.ts";
+import { deploySubject, planIssues, subjectsFrom } from "../src/issues.ts";
 import type { IssueAction } from "../src/issues.ts";
 
 const RUN = "https://github.com/qntx/sh/actions/runs/1";
@@ -28,6 +28,37 @@ describe("subjectsFrom", () => {
   test("sk titles carry the sk: prefix", () => {
     const s = subjectsFrom("sk", { ok: [], failed: { "qntx/kobe": "boom" } });
     expect(s).toStrictEqual([{ title: "sync: sk:qntx/kobe failing", ok: false, error: "boom" }]);
+  });
+});
+
+describe("deploySubject", () => {
+  test("success produces an ok deploy subject", () => {
+    expect(deploySubject("success", "")).toStrictEqual([
+      { title: "sync: sk deploy failing", ok: true, kind: "deploy" },
+    ]);
+  });
+
+  test("failure carries the error", () => {
+    expect(deploySubject("failure", "no token")).toStrictEqual([
+      { title: "sync: sk deploy failing", ok: false, error: "no token", kind: "deploy" },
+    ]);
+  });
+
+  test("failure with an empty error falls back to a generic message", () => {
+    expect(deploySubject("failure", "")).toStrictEqual([
+      {
+        title: "sync: sk deploy failing",
+        ok: false,
+        error: "The sk deploy failed; see the run log.",
+        kind: "deploy",
+      },
+    ]);
+  });
+
+  test("skipped, cancelled and empty results produce no subject", () => {
+    for (const result of ["", "skipped", "cancelled"]) {
+      expect(deploySubject(result, "ignored")).toStrictEqual([]);
+    }
   });
 });
 
@@ -119,5 +150,30 @@ describe("planIssues", () => {
     expect(actions).toStrictEqual([
       { kind: "close", number: 2, comment: `Synced again in ${RUN}.` },
     ]);
+  });
+
+  test("a failing deploy subject creates the deploy tracking issue", () => {
+    const a = created(planIssues(deploySubject("failure", "no token"), [], RUN));
+    expect(a.title).toBe("sync: sk deploy failing");
+    expect(a.body).toContain("no token");
+    expect(a.body).toContain(`Latest failing run: ${RUN}`);
+    expect(a.body).toContain("-f deploy-sk=true");
+  });
+
+  test("an unchanged deploy body plans nothing", () => {
+    const subjects = deploySubject("failure", "no token");
+    const c = created(planIssues(subjects, [], RUN));
+    expect(
+      planIssues(subjects, [{ number: 5, title: "sync: sk deploy failing", body: c.body }], RUN),
+    ).toStrictEqual([]);
+  });
+
+  test("a succeeding deploy subject closes the open issue", () => {
+    const actions = planIssues(
+      deploySubject("success", ""),
+      [{ number: 5, title: "sync: sk deploy failing", body: "b" }],
+      RUN,
+    );
+    expect(actions).toStrictEqual([{ kind: "close", number: 5, comment: `Deployed in ${RUN}.` }]);
   });
 });

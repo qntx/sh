@@ -67,10 +67,21 @@ again.
   for that commit, let alone passed. Its build and deploy commands are
   configured in the Cloudflare dashboard, not in this repository; each
   push gets a `Workers Builds: sh` check run.
-- **sk.qntx.org** — the `sk` Worker is not connected to Workers Builds.
-  It changes only when someone deploys it, so after a `Sync` commit that
-  touches `apps/sk/` or a merged `apps/sk` change, run
-  `cd apps/sk && bun run build && bun run deploy`.
+- **sk.qntx.org** — deployed by the `Sync` workflow: whenever a run
+  commits a change under `apps/sk/` (lock or content), its `deploy-sk`
+  job builds `apps/sk` at that commit and runs `wrangler deploy` (the
+  version `apps/sk/package.json` pins) in the GitHub environment
+  `production`, through qntx/workflows' reusable `deploy-cloudflare.yml`
+  (pinned to a qntx/workflows main commit until v2.14.0 is released,
+  then `@v2`). Required configuration: environment `production` with
+  secret `CLOUDFLARE_API_TOKEN` (optional secret `CLOUDFLARE_ACCOUNT_ID`);
+  without the token the run fails with an error naming the environment
+  and the secret. A failing
+  deploy keeps a `sync: sk deploy failing` tracking issue open. To
+  deploy without a lock change (after fixing a failed deploy, or after
+  merging an `apps/sk` code change):
+  `gh workflow run sync.yml -R qntx/sh -f deploy-sk=true`. Nobody
+  deploys by hand.
 
 Because a push to `main` is a production deploy of sh.qntx.org, `main`
 must only receive commits that already passed CI or an equivalent gate:

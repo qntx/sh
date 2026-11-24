@@ -77,7 +77,10 @@ Deploy: every push to `main` deploys sh.qntx.org to production (Cloudflare
 Workers Builds on the `sh` Worker, configured in the Cloudflare dashboard),
 whether or not CI ran. So `main` only receives merges of CI-green pull
 requests and the `Sync` job's lock commit (built offline in that job); never
-push to `main` directly. sk.qntx.org is not on Workers Builds: it changes
-only when someone deploys it (`cd apps/sk && bun run build && bun run
-deploy`). Preview (no traffic switch): `bunx wrangler versions upload` from
+push to `main` directly. sk.qntx.org is not on Workers Builds: the `Sync`
+workflow's `deploy-sk` job deploys it whenever a run commits a change under
+`apps/sk` (`wrangler deploy` in the GitHub environment `production` via
+qntx/workflows' `deploy-cloudflare.yml`); for anything else dispatch
+`gh workflow run sync.yml -R qntx/sh -f deploy-sk=true` — nobody deploys by
+hand. Preview (no traffic switch): `bunx wrangler versions upload` from
 an app dir.
