@@ -75,7 +75,8 @@ again.
   (pinned to a qntx/workflows main commit until v2.14.0 is released,
   then `@v2`). Required configuration: environment `production` with
   secret `CLOUDFLARE_API_TOKEN` (optional secret `CLOUDFLARE_ACCOUNT_ID`);
-  without the token the run fails with an error naming both. A failing
+  without the token the run fails with an error naming the environment
+  and the secret. A failing
   deploy keeps a `sync: sk deploy failing` tracking issue open. To
   deploy without a lock change (after fixing a failed deploy, or after
   merging an `apps/sk` code change):
