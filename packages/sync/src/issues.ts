@@ -5,7 +5,7 @@
 
 import type { SyncStatus } from "./status.ts";
 
-export type Subject = { title: string; ok: boolean; error?: string };
+export type Subject = { title: string; ok: boolean; error?: string; kind?: "deploy" };
 
 export type OpenIssue = { number: number; title: string; body: string };
 
@@ -16,6 +16,7 @@ export type IssueAction =
 
 const TITLE_PREFIX = "sync: ";
 const TITLE_SUFFIX = " failing";
+const DEPLOY_TITLE = `${TITLE_PREFIX}sk deploy${TITLE_SUFFIX}`;
 const ERROR_LIMIT = 4000;
 
 export function subjectsFrom(app: "sh" | "sk", status: SyncStatus): Subject[] {
@@ -34,13 +35,46 @@ export function subjectsFrom(app: "sh" | "sk", status: SyncStatus): Subject[] {
   return subjects;
 }
 
+// The deploy-sk job result (a job result string, not a SyncStatus): one
+// deploy tracking issue, created on failure and closed on success.
+export function deploySubject(result: string, error: string): Subject[] {
+  if (result === "success") {
+    return [{ title: DEPLOY_TITLE, ok: true, kind: "deploy" }];
+  }
+  if (result !== "failure") {
+    return [];
+  }
+  return [
+    {
+      title: DEPLOY_TITLE,
+      ok: false,
+      error: error === "" ? "The sk deploy failed; see the run log." : error,
+      kind: "deploy",
+    },
+  ];
+}
+
 function bodyFor(subject: Subject, runUrl: string): string {
-  const name = subject.title.slice(TITLE_PREFIX.length, -TITLE_SUFFIX.length);
   const error = (subject.error ?? "").replaceAll("```", "'''");
   const truncated =
     error.length > ERROR_LIMIT
       ? `${error.slice(0, ERROR_LIMIT)}\n… (truncated, ${error.length - ERROR_LIMIT} more characters)`
       : error;
+  if (subject.kind === "deploy") {
+    return [
+      "The `Sync` workflow could not deploy `apps/sk` to sk.qntx.org; production keeps serving the previous deployment.",
+      "",
+      `Latest failing run: ${runUrl}`,
+      "",
+      "```text",
+      truncated,
+      "```",
+      "",
+      "After fixing the cause, deploy the current `main` with `gh workflow run sync.yml -R qntx/sh -f deploy-sk=true`. Updated by every failing deploy; closed automatically when a deploy succeeds.",
+      "",
+    ].join("\n");
+  }
+  const name = subject.title.slice(TITLE_PREFIX.length, -TITLE_SUFFIX.length);
   return [
     `The \`Sync\` workflow fails for \`${name}\`. Its lock entry stays at the last good state; every other tool keeps syncing.`,
     "",
@@ -68,7 +102,8 @@ export function planIssues(subjects: Subject[], open: OpenIssue[], runUrl: strin
         actions.push({
           kind: "close",
           number: issue.number,
-          comment: `Synced again in ${runUrl}.`,
+          comment:
+            subject.kind === "deploy" ? `Deployed in ${runUrl}.` : `Synced again in ${runUrl}.`,
         });
       }
       continue;

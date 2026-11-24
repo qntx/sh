@@ -20,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   asset-name parser, and the installers' candidate triples and archive
   member names are checked against it by test. Documented for tool
   authors in docs/sh/release-assets.mdx.
+- The `Sync` workflow deploys sk.qntx.org itself: when a run commits a
+  change under `apps/sk/` — or the new `deploy-sk` dispatch input is
+  set — a `deploy-sk` job builds `apps/sk` at the pushed commit and runs
+  `wrangler deploy` (the exact version `apps/sk/package.json` pins) in
+  the `production` GitHub environment, through qntx/workflows' reusable
+  `deploy-cloudflare.yml` (pinned to a main commit until v2.14.0 ships).
+  A missing `CLOUDFLARE_API_TOKEN` environment secret fails the run with
+  instructions, and a failing deploy is tracked by a `sync: sk deploy
+  failing` issue.
 - Installable build variants end to end: the catalog declares them
   (`variants: ["onion"]` for nosfry), sync verifies and locks their
   archives under `variants.<name>` in `releases.json`, and both installers
@@ -71,8 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failing run, closed automatically when it syncs again.
 - The `Deploy` GitHub workflow was removed and `sync.yml` is
   commit-only: sh.qntx.org is deployed by Cloudflare Workers Builds on
-  every push to `main`; sk.qntx.org has no automatic deploy and changes
-  only when someone deploys it.
+  every push to `main`.
 - `packages/github` renamed to `packages/sync` (`@qntx/sync`): GitHub
   client, stable-release selection, lock I/O, plus shared `isRecord` and
   `sha256Hex` helpers now used by both apps.

@@ -21,6 +21,11 @@ on:
         required: false
         type: boolean
         default: false
+      deploy-sk:
+        description: "Deploy apps/sk even when this run changes nothing in it"
+        required: false
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -37,6 +42,9 @@ jobs:
     outputs:
       sh: ${{ steps.status.outputs.sh }}
       sk: ${{ steps.status.outputs.sk }}
+      ref: ${{ steps.push.outputs.ref }}
+      sk-changed: ${{ steps.push.outputs.sk-changed }}
+      wrangler: ${{ steps.wrangler.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -47,6 +55,17 @@ jobs:
           bun-version: "1.4"
 
       - run: bun install --frozen-lockfile
+
+      # The deploy-sk job installs exactly the wrangler apps/sk pins, so
+      # the locked toolchain and the deployed one cannot drift apart.
+      - id: wrangler
+        run: |
+          v=$(jq -r '.devDependencies.wrangler' apps/sk/package.json)
+          if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::apps/sk devDependencies.wrangler is not an exact X.Y.Z pin: $v"
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
 
       # Per-tool isolation: a failed tool keeps its previous lock entry
       # while the rest sync and are committed. Each step writes its
@@ -84,9 +103,15 @@ jobs:
           git config user.name "$GIT_USER_NAME"
           git config user.email "$GIT_USER_EMAIL"
           git add -- apps/sh/releases.json apps/sk/skills.lock.json apps/sk/content
+          if git diff --cached --quiet -- apps/sk/skills.lock.json apps/sk/content; then
+            echo "sk-changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "sk-changed=true" >> "$GITHUB_OUTPUT"
+          fi
           if git diff --cached --quiet; then
             echo 'No sync changes.'
             echo "pushed=false" >> "$GITHUB_OUTPUT"
+            echo "ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git commit -m "chore(sync): update releases"
@@ -124,9 +149,58 @@ jobs:
           echo '::error::One or more tools failed to sync; see the step logs and the tracking issues.'
           exit 1
 
-  issues:
+  # sk.qntx.org is not on Workers Builds: deploy it from here whenever this
+  # run committed a change under apps/sk (or a dispatch asks for it), even
+  # when another tool failed to sync. Environment secrets are only visible
+  # to jobs in that environment, so the credentials check runs in one.
+  sk-credentials:
     needs: sync
-    if: ${{ !cancelled() && (needs.sync.outputs.sh != '' || needs.sync.outputs.sk != '') }}
+    if: ${{ !cancelled() && needs.sync.outputs.ref != '' && (needs.sync.outputs.sk-changed == 'true' || inputs.deploy-sk) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: production
+    permissions: {}
+    outputs:
+      error: ${{ steps.check.outputs.error }}
+    steps:
+      - id: check
+        env:
+          HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        run: |
+          if [ "$HAS_TOKEN" = true ]; then
+            exit 0
+          fi
+          msg="Environment 'production' has no secret CLOUDFLARE_API_TOKEN, so apps/sk cannot be deployed. Create it under Settings > Environments > production > Environment secrets, then run: gh workflow run sync.yml -R qntx/sh -f deploy-sk=true"
+          echo "::error::$msg"
+          echo "error=$msg" >> "$GITHUB_OUTPUT"
+          exit 1
+
+  deploy-sk:
+    needs: [sync, sk-credentials]
+    if: ${{ !cancelled() && needs.sk-credentials.result == 'success' }}
+    # deploy-cloudflare.yml is not in a qntx/workflows release yet, so it is
+    # pinned to the main commit that added it (qntx/workflows#132). Move to
+    # @v2 after v2.14.0 is released.
+    uses: qntx/workflows/.github/workflows/deploy-cloudflare.yml@0e58414f3abfca70d33a2c61f993495bb20882fb
+    permissions:
+      contents: read
+    secrets:
+      # The called job runs in `environment: production`, which resolves
+      # these names to that environment's secrets.
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    with:
+      ref: ${{ needs.sync.outputs.ref }}
+      environment: production
+      runs-on: ubuntu-24.04
+      working-directory: apps/sk
+      build-directory: .
+      build-command: bun install --frozen-lockfile && bun run --cwd apps/sk build
+      wrangler-version: ${{ needs.sync.outputs.wrangler }}
+
+  issues:
+    needs: [sync, sk-credentials, deploy-sk]
+    if: ${{ !cancelled() && (needs.sync.outputs.sh != '' || needs.sync.outputs.sk != '' || needs.sk-credentials.result == 'failure' || needs.deploy-sk.result == 'success' || needs.deploy-sk.result == 'failure') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -146,4 +220,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SH_STATUS: ${{ needs.sync.outputs.sh }}
           SK_STATUS: ${{ needs.sync.outputs.sk }}
+          SK_DEPLOY: ${{ needs.sk-credentials.result == 'failure' && 'failure' || needs.deploy-sk.result }}
+          SK_DEPLOY_ERROR: ${{ needs.sk-credentials.outputs.error }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
