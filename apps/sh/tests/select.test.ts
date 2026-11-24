@@ -1,7 +1,12 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, test } from "vite-plus/test";
 
+import type { Release } from "@qntx/sync";
+
 import type { LockEntry } from "../src/lock.ts";
-import { selectRelease } from "../src/select.ts";
+import { parseAssetName, selectRelease } from "../src/select.ts";
 import { H, assetSet, fails, rel, sums } from "./fixtures/releases.ts";
 
 const T1 = "x86_64-unknown-linux-gnu";
@@ -101,4 +106,156 @@ test("other-prefix assets (bux-guest, xmtp-ffi) stay ignored", async () => {
   assets.push("bux-guest-x86_64.bin", "ffi-v0.2.0.tar.gz");
   const s = await selectRelease("o/r", "bux", [rel("v0.9.0", assets)], undefined, false, sums);
   expect(s.version).toBe("0.9.0");
+});
+
+type Recorded = { release: Release; sha256: Record<string, string> };
+
+function recorded(name: string): Recorded {
+  const p = fileURLToPath(new URL(`fixtures/recorded/${name}`, import.meta.url));
+  return JSON.parse(readFileSync(p, "utf8")) as Recorded;
+}
+
+function fixtureSums(fx: Recorded, calls: string[]) {
+  return (_r: Release, name: string): string => {
+    calls.push(name);
+    const t = fx.sha256[name];
+    if (t === undefined) {
+      throw new Error(`unexpected .sha256 request: ${name}`);
+    }
+    return t;
+  };
+}
+
+describe("recorded fixtures", () => {
+  test("nosfry v0.4.0: variants skipped, SBOMs ignored", async () => {
+    const fx = recorded("nosfry-v0.4.0.json");
+    const calls: string[] = [];
+    const s = await selectRelease(
+      "qntx/nosfry",
+      "nosfry",
+      [fx.release],
+      undefined,
+      false,
+      fixtureSums(fx, calls),
+    );
+    expect(s.version).toBe("0.4.0");
+    expect(s.assets).toStrictEqual({
+      "x86_64-unknown-linux-gnu":
+        "d36f4a92972f79c1d2847f2fc45096d002b23c1ebc1f3dd3bf89ef2fa443e737",
+      "aarch64-unknown-linux-gnu":
+        "ce8de61285089928dcfa8482234e3e9babe59d5a065c1c5a8275de68de11c9b1",
+      "aarch64-apple-darwin": "3e36f0471e94cd01c1a5421afb67968241dafb5ef6b6ec16906047896a589abc",
+    });
+    expect(s.skipped).toStrictEqual(["onion"]);
+    expect(calls.toSorted()).toStrictEqual([
+      "nosfry-0.4.0-aarch64-apple-darwin.tar.gz.sha256",
+      "nosfry-0.4.0-aarch64-unknown-linux-gnu.tar.gz.sha256",
+      "nosfry-0.4.0-x86_64-unknown-linux-gnu.tar.gz.sha256",
+    ]);
+  });
+
+  test("kobe v7.0.0 matches the locked asset map", async () => {
+    const fx = recorded("kobe-v7.0.0.json");
+    const calls: string[] = [];
+    const s = await selectRelease(
+      "qntx/kobe",
+      "kobe",
+      [fx.release],
+      undefined,
+      false,
+      fixtureSums(fx, calls),
+    );
+    const lock = JSON.parse(
+      readFileSync(fileURLToPath(new URL("../releases.json", import.meta.url)), "utf8"),
+    ) as Record<string, { assets: Record<string, string> }>;
+    expect(s.version).toBe("7.0.0");
+    expect(s.assets).toStrictEqual(lock["kobe"]?.assets);
+    expect(s.skipped).toStrictEqual([]);
+    expect(calls).toHaveLength(7);
+  });
+});
+
+describe("parseAssetName", () => {
+  test.each<[string, { variant: string | undefined; target: string; kind: string }]>([
+    [
+      "x-1.0.0-aarch64-apple-darwin.tar.gz",
+      { variant: undefined, target: "aarch64-apple-darwin", kind: "archive" },
+    ],
+    [
+      "x-1.0.0-x86_64-pc-windows-msvc.zip",
+      { variant: undefined, target: "x86_64-pc-windows-msvc", kind: "archive" },
+    ],
+    [
+      "x-1.0.0-aarch64-apple-darwin.tar.gz.sha256",
+      { variant: undefined, target: "aarch64-apple-darwin", kind: "sha256" },
+    ],
+    [
+      "x-1.0.0-aarch64-apple-darwin.cdx.json",
+      { variant: undefined, target: "aarch64-apple-darwin", kind: "sbom" },
+    ],
+    [
+      "x-1.0.0-onion-aarch64-apple-darwin.tar.gz",
+      { variant: "onion", target: "aarch64-apple-darwin", kind: "archive" },
+    ],
+    [
+      "x-1.0.0-onion-aarch64-apple-darwin.tar.gz.sha256",
+      { variant: "onion", target: "aarch64-apple-darwin", kind: "sha256" },
+    ],
+    [
+      "x-1.0.0-onion-aarch64-apple-darwin.cdx.json",
+      { variant: "onion", target: "aarch64-apple-darwin", kind: "sbom" },
+    ],
+  ])("parses %s", (name, want) => {
+    expect(parseAssetName("x", "1.0.0", name)).toStrictEqual(want);
+  });
+
+  test.each(["SHA256SUMS", "bux-guest-x86_64.bin", "x-2.0.0-aarch64-apple-darwin.tar.gz"])(
+    "ignores %s",
+    (name) => {
+      expect(parseAssetName("x", "1.0.0", name)).toBeUndefined();
+    },
+  );
+
+  test.each([
+    "x-1.0.0-x86_64-unknown-freebsd.tar.gz",
+    "x-1.0.0-x86_64-unknown-linux-gnu.tar.xz",
+    "x-1.0.0-x86_64-unknown-linux-gnu.tar.gz.sig",
+    "x-1.0.0-aarch64-apple-darwn.tar.gz",
+    "x-1.0.0-onion-aarch64-unknown-linux-gun.tar.gz",
+    "x-1.0.0-x86_64-pc-windows-msvc.tar.gz",
+    "x-1.0.0-Onion-x86_64-unknown-linux-gnu.tar.gz",
+    "x-1.0.0-on-ion-x86_64-unknown-linux-gnu.tar.gz",
+    "x-1.0.0-x86_64-unknown-linux-gnu.cdx.json.sha256",
+    "x-1.0.0-x86_64-unknown-freebsd.cdx.json",
+  ])("rejects %s", async (name) => {
+    expect(() => parseAssetName("x", "1.0.0", name)).toThrow(/unrecognized asset/);
+    const assets = [...assetSet("x", "1.0.0", ["x86_64-unknown-linux-gnu"]), name];
+    await fails(
+      selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, sums),
+      "unrecognized asset",
+    );
+  });
+});
+
+describe("SBOM and variant selection rules", () => {
+  test("orphan default-variant .cdx.json fails", async () => {
+    const assets = [
+      ...assetSet("x", "1.0.0", ["x86_64-unknown-linux-gnu"]),
+      "x-1.0.0-aarch64-apple-darwin.cdx.json",
+    ];
+    await fails(
+      selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, sums),
+      "has no archive",
+    );
+  });
+
+  test("undeclared variant with an incomplete set is still skipped", async () => {
+    const assets = [
+      ...assetSet("x", "1.0.0", ["x86_64-unknown-linux-gnu"]),
+      "x-1.0.0-onion-x86_64-unknown-linux-gnu.tar.gz",
+    ];
+    const s = await selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, sums);
+    expect(s.skipped).toStrictEqual(["onion"]);
+    expect(s.assets["x86_64-unknown-linux-gnu"]).toBe(H);
+  });
 });

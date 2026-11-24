@@ -40,10 +40,14 @@ describe("loadReleases", () => {
 
 describe("changed", () => {
   const prev = entry("1.0.0", { t1: H1 });
-  const sel = { version: "1.0.0", tag: "v1.0.0", assets: { t1: H1 } };
+  const sel = { version: "1.0.0", tag: "v1.0.0", assets: { t1: H1 }, skipped: [] as string[] };
 
   test("unchanged", () => {
     expect(changed(prev, sel, false)).toBe(false);
+  });
+
+  test("skipped variants do not re-verify", () => {
+    expect(changed(prev, { ...sel, skipped: ["onion"] }, false)).toBe(false);
   });
 
   test("hash change re-verifies", () => {
