@@ -3,7 +3,8 @@
 # Usage: sh test/e2e/unix.sh dist/kobe.sh
 set -eu
 
-script=$1
+# Absolute path: the XDG test below runs the script from another cwd.
+script=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
 # Tool/binary names come from the rendered script name (kobe.sh -> kobe);
 # the running-binary FIFO case is kobe-specific (`kobe evm -m -` blocks on
 # stdin) and is skipped for other tools.
@@ -69,16 +70,19 @@ fi
 
 # Declared build variant (e.g. nosfry onion), driven by VARIANT + a pin —
 # the pinned path probes the variant's .sha256 like the default build's.
+# VARIANT_VERSION may differ from PIN_VERSION when the pinned default
+# exercises an older release than the variant's first-published one.
 if [ -n "${VARIANT-}" ] && [ -n "${PIN_VERSION-}" ]; then
+    VARIANT_VERSION=${VARIANT_VERSION:-$PIN_VERSION}
     sh "$script" --install-dir "$d" --no-modify-path --quiet \
-        --version "$PIN_VERSION" --variant "$VARIANT"
-    "$d/$bin" --version | grep -q "$PIN_VERSION"
+        --version "$VARIANT_VERSION" --variant "$VARIANT"
+    "$d/$bin" --version | grep -q "$VARIANT_VERSION"
     grep -qF "\"variant\":\"$VARIANT\"" "$receipt"
 
     # Same version + variant again: the idempotency check short-circuits
     # before any download, which the "Skipping" line proves.
     out=$(sh "$script" --install-dir "$d" --no-modify-path \
-        --version "$PIN_VERSION" --variant "$VARIANT" 2>&1) || {
+        --version "$VARIANT_VERSION" --variant "$VARIANT" 2>&1) || {
         printf '%s\n' "$out" >&2
         exit 1
     }
@@ -90,13 +94,13 @@ if [ -n "${VARIANT-}" ] && [ -n "${PIN_VERSION-}" ]; then
     # The <PREFIX>_VARIANT env var selects a variant like --variant does.
     prefix=$(printf '%s' "$tool" | tr 'a-z-' 'A-Z_')
     env "${prefix}_VARIANT=$VARIANT" sh "$script" --install-dir "$d" \
-        --no-modify-path --quiet --version "$PIN_VERSION" --force
+        --no-modify-path --quiet --version "$VARIANT_VERSION" --force
     grep -qF "\"variant\":\"$VARIANT\"" "$receipt"
 
     # Back to the default build at the same pinned version: reinstalls
     # (receipt variant no longer matches) and writes no "variant" key.
-    sh "$script" --install-dir "$d" --no-modify-path --quiet --version "$PIN_VERSION"
-    "$d/$bin" --version | grep -q "$PIN_VERSION"
+    sh "$script" --install-dir "$d" --no-modify-path --quiet --version "$VARIANT_VERSION"
+    "$d/$bin" --version | grep -q "$VARIANT_VERSION"
     if grep -qF '"variant"' "$receipt"; then
         echo "receipt kept a variant key" >&2
         exit 1
@@ -129,8 +133,19 @@ fi
 [ "$(sha256_of "$d/$bin")" = "$bin_sha" ]
 [ "$(sha256_of "$receipt")" = "$rcpt_sha" ]
 
-# Uninstall removes binary and receipt
-sh "$script" --install-dir "$d" --no-modify-path --quiet --uninstall
+# A relative XDG_CONFIG_HOME is ignored per the XDG spec (matching upg):
+# the receipt lands at the default ~/.config path and no relative dir is
+# created under the cwd.
+(cd "$d" && XDG_CONFIG_HOME=rel sh "$script" --install-dir "$d" --no-modify-path --quiet --force)
+test ! -e "$d/rel"
+test -f "$receipt"
+
+# Uninstall removes binary and receipt; --quiet means no stderr at all.
+errs=$(sh "$script" --install-dir "$d" --no-modify-path --quiet --uninstall 2>&1 >/dev/null)
+test -z "$errs" || {
+    printf 'quiet uninstall wrote to stderr:\n%s\n' "$errs" >&2
+    exit 1
+}
 test ! -e "$d/$bin"
 test ! -e "$receipt"
 

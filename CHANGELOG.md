@@ -30,6 +30,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `install.sh --uninstall` ignored `--quiet` and always printed progress
+  lines; it now honours it (errors only), matching `-Quiet` on Windows.
+- `install.sh --dry-run` on a locked install printed the first host
+  candidate's asset name even when the lock carries a different target
+  (e.g. musl on a glibc host for a tool that ships only gnu); it now
+  uses the same first-embedded-candidate selection as the real install.
+- A relative `XDG_CONFIG_HOME`/`XDG_BIN_HOME` was used verbatim, putting
+  the receipt under the cwd — where upg, which ignores non-absolute XDG
+  dirs per the spec, cannot find it. Both now fall back to the defaults
+  unless they are absolute.
 - Sync parses release assets under the grammar
   `<bin>-<version>[-<variant>]-<target>.<ext>` with `.sha256` (required)
   and `.cdx.json` SBOM (optional, never fetched) sidecars, so nosfry
