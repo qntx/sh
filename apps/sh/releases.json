@@ -25,6 +25,13 @@
       "x86_64-unknown-linux-gnu": "d36f4a92972f79c1d2847f2fc45096d002b23c1ebc1f3dd3bf89ef2fa443e737",
       "aarch64-unknown-linux-gnu": "ce8de61285089928dcfa8482234e3e9babe59d5a065c1c5a8275de68de11c9b1",
       "aarch64-apple-darwin": "3e36f0471e94cd01c1a5421afb67968241dafb5ef6b6ec16906047896a589abc"
+    },
+    "variants": {
+      "onion": {
+        "x86_64-unknown-linux-gnu": "5c831a5ea280305587a551a74289ad31e91cb726f00eb0a96a49ce106e59afdb",
+        "aarch64-unknown-linux-gnu": "e11d55ab4ec57fe708982c99821eba857d755447a07aee6ee06c1774dae204fd",
+        "aarch64-apple-darwin": "e23e37bbbf96e8a4f5fe220d93b24d3735c3cecffd4a4d5f8e1a60615f01941f"
+      }
     }
   }
 }

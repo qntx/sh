@@ -1,9 +1,9 @@
 {
   "qntx/kobe": {
-    "ref": "v6.0.0",
-    "commit": "ca1ee97837a93d2676f96402c695c7aa3fdd0318",
+    "ref": "v7.0.0",
+    "commit": "dad6a57a45f9ed8f32c48ea331415647a85f1a46",
     "skills": {
-      "kobe": "251ddc0d96a3e5bcbff4d25a2c189b46d1fdbeb13e17fecad29dd11e34f25962"
+      "kobe": "d451ff2b97077c292abb1aa10886dfc786c34ddcc0f6f4795efbbb93ff18f439"
     }
   }
 }
