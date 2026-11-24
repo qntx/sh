@@ -2,7 +2,8 @@
 // release, verify assets, and rewrite releases.json. The default build
 // and every catalog-declared variant are locked; undeclared variants are
 // skipped with a summary line and `.cdx.json` SBOM sidecars are parsed
-// but never fetched. Atomic: any failure writes nothing.
+// but never fetched. Atomic per tool: a failed tool keeps its previous
+// lock entry while every other tool syncs and is written.
 
 import { createHash } from "node:crypto";
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -15,9 +16,12 @@ import {
   download,
   releases as getReleases,
   repo as getRepo,
+  settle,
   text,
   writeIfChanged,
+  writeStatus,
 } from "@qntx/sync";
+import type { SyncStatus } from "@qntx/sync";
 
 import { parseCatalog, sanitizeDescription } from "./catalog.ts";
 import type { ToolSpec } from "./catalog.ts";
@@ -146,20 +150,16 @@ async function main(): Promise<number> {
   const todo = pickToolKeys(keys, only);
 
   const work = mkdtempSync(join(tmpdir(), "sh-sync-"));
-  const results: ToolResult[] = [];
-  const failures: string[] = [];
   const summary: string[] = [];
+  let settled: { results: Map<string, ToolResult>; status: SyncStatus };
   try {
-    /* oxlint-disable no-await-in-loop */
-    for (const key of todo) {
+    settled = await settle(todo, async (key) => {
       try {
         const spec = catalog[key];
         if (spec === undefined) {
           fail(key, "not in catalog");
         }
-        // oxlint-disable-next-line no-await-in-loop
         const result = await syncTool(key, spec, releases[key], force, work);
-        results.push(result);
         summary.push(`- ${result.note}`);
         for (const v of result.skipped) {
           summary.push(`- ${key}: skipped undeclared variant ${v}`);
@@ -167,16 +167,17 @@ async function main(): Promise<number> {
         for (const v of result.unpublished) {
           summary.push(`- ${key}: declared variant ${v} not published in ${result.entry.tag}`);
         }
+        return result;
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
-        failures.push(`${key}: ${msg}`);
         summary.push(`- ${key}: FAILED — ${msg}`);
+        throw error;
       }
-    }
-    /* oxlint-enable no-await-in-loop */
+    });
   } finally {
     rmSync(work, { recursive: true, force: true });
   }
+  const { results, status } = settled;
 
   const summaryFile = process.env["GITHUB_STEP_SUMMARY"];
   if (summaryFile !== undefined && summaryFile !== "") {
@@ -185,14 +186,13 @@ async function main(): Promise<number> {
   for (const line of summary) {
     process.stdout.write(`${line.slice(2)}\n`);
   }
-  for (const f of failures) {
-    process.stderr.write(`error: ${f}\n`);
-  }
-  if (failures.length > 0) {
-    return 1;
+  for (const [key, msg] of Object.entries(status.failed)) {
+    process.stderr.write(`error: ${key}: ${msg}\n`);
   }
 
-  const next = mergeReleases(catalog, releases, results);
+  // Failed tools keep their previous entries; the lock reflects every
+  // tool that synced.
+  const next = mergeReleases(catalog, releases, [...results.values()]);
   mkdirSync(dirname(lockPath), { recursive: true });
   const out = `${JSON.stringify(next, null, 2)}\n`;
   if (writeIfChanged(lockPath, out)) {
@@ -200,7 +200,8 @@ async function main(): Promise<number> {
   } else {
     process.stdout.write("releases.json unchanged\n");
   }
-  return 0;
+  writeStatus(process.env["SYNC_STATUS"], status);
+  return Object.keys(status.failed).length > 0 ? 1 : 0;
 }
 
 process.exitCode = await main();

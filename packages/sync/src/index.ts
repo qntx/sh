@@ -4,3 +4,7 @@ export { sha256Hex } from "./hash.ts";
 export { isRecord } from "./json.ts";
 export { lockJson, writeIfChanged } from "./lock.ts";
 export { STABLE_TAG_RE, latestStable } from "./release.ts";
+export { parseStatus, settle, writeStatus } from "./status.ts";
+export type { SyncStatus } from "./status.ts";
+export { planIssues, subjectsFrom } from "./issues.ts";
+export type { IssueAction, OpenIssue, Subject } from "./issues.ts";

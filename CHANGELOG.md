@@ -30,9 +30,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sync verification and both installers accept archives that nest the
   binary under a single top-level `<archive-stem>/` directory, matching
   the layout nosfry v0.4.0 ships.
+- The `Sync` workflow never ran the `apps/sk` sync although it staged
+  `apps/sk/skills.lock.json` and `apps/sk/content` — sk stayed at kobe
+  v6.0.0. It now runs after the sh sync, gated by a `source` dispatch
+  input (`SYNC_SOURCE`).
+- `bun run test` in apps/sk executed a live sync at module load and
+  rewrote `skills.lock.json` + `content/`; the sync library now lives in
+  `src/source.ts` so tests never reach the entrypoint.
 
 ### Changed
 
+- Sync failures are isolated per tool (sh) and per source (sk): a failing
+  entry keeps its previous lock state while the rest sync and are
+  committed, the run ends red, and each app writes a per-entry status
+  JSON (`SYNC_STATUS`). A crash before the per-entry loop still writes
+  nothing.
+- `Sync` runs hourly (`17 * * * *`) instead of every 15 minutes, and a
+  `scripts/track-sync.ts` step keeps a `sync`-labelled GitHub issue per
+  failing tool/source — created on first failure, updated by each
+  failing run, closed automatically when it syncs again.
 - Deployment is local again via the Wrangler CLI (`bun run deploy`); the
   `Deploy` GitHub workflow was removed and `sync.yml` is commit-only.
 - `packages/github` renamed to `packages/sync` (`@qntx/sync`): GitHub

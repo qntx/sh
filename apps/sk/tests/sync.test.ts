@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import { nextLock, syncSource } from "../src/sync.ts";
+import { mergeLock, nextLock, syncSource } from "../src/source.ts";
 import { ENC, SHA, deps, extraFileListDir } from "./fixtures.ts";
 
 const NAME_ONLY = ENC.encode("---\nname: kobe\ndescription: d\n---\nx\n");
@@ -72,5 +72,28 @@ describe("nextLock", () => {
     const lock = nextLock(["qntx/kobe"], [r]);
     expect(Object.keys(lock)).toStrictEqual(["qntx/kobe"]);
     expect(nextLock([], [r])).toStrictEqual({});
+  });
+});
+
+describe("mergeLock", () => {
+  const result = {
+    source: "qntx/kobe",
+    entry: { ref: "v2", commit: SHA, skills: { kobe: "y" } },
+    files: new Map<string, Uint8Array>(),
+  };
+
+  test("failed sources keep their previous lock entries", () => {
+    const previous = {
+      "qntx/nosfry": { ref: "v1", commit: SHA, skills: { nosfry: "x" } },
+    };
+    const lock = mergeLock(["qntx/kobe", "qntx/nosfry"], previous, [result]);
+    // kobe synced fresh, nosfry failed and kept its previous entry.
+    expect(lock["qntx/kobe"]?.ref).toBe("v2");
+    expect(lock["qntx/nosfry"]).toStrictEqual(previous["qntx/nosfry"]);
+  });
+
+  test("a failed source with no previous entry is absent", () => {
+    const lock = mergeLock(["qntx/kobe", "qntx/new"], {}, [result]);
+    expect(Object.keys(lock)).toStrictEqual(["qntx/kobe"]);
   });
 });

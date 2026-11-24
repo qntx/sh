@@ -1,6 +1,6 @@
 import type { Release } from "@qntx/sync";
 
-import type { Deps } from "../src/sync.ts";
+import type { Deps } from "../src/source.ts";
 
 export const ENC: TextEncoder = new TextEncoder();
 export const SKILL: Uint8Array = ENC.encode(
