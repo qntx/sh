@@ -68,4 +68,6 @@ naming drift: that tool's sync fails, its `sync`-labelled tracking issue
 opens (or is updated), and every other tool keeps syncing. Sync runs
 hourly; release pipelines that need a fresh lock immediately can
 dispatch `gh workflow run sync.yml -R qntx/sh -f tool=<key>` (needs a
-token with `actions: write` on qntx/sh).
+token with `actions: write` on qntx/sh). A lock commit reaches
+sh.qntx.org about a minute after Sync pushes it: every push to `main` is
+deployed.

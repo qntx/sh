@@ -73,7 +73,11 @@ Sync the release lock (needs `GITHUB_TOKEN`, e.g. `$(gh auth token)`):
 cd apps/sh && bun run sync          # SYNC_TOOL=<key> SYNC_FORCE=true
 ```
 
-Preview (no traffic switch): `bunx wrangler versions upload` from an app
-dir. Production: `bun run deploy` from the repo root — it builds every app
-and runs `wrangler deploy` in each; run it after `main` is green and after
-the `Sync` workflow lands a lock update.
+Deploy: every push to `main` deploys sh.qntx.org to production (Cloudflare
+Workers Builds on the `sh` Worker, configured in the Cloudflare dashboard),
+whether or not CI ran. So `main` only receives merges of CI-green pull
+requests and the `Sync` job's lock commit (built offline in that job); never
+push to `main` directly. sk.qntx.org is not on Workers Builds: it changes
+only when someone deploys it (`cd apps/sk && bun run build && bun run
+deploy`). Preview (no traffic switch): `bunx wrangler versions upload` from
+an app dir.

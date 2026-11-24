@@ -59,18 +59,37 @@ Every failing entry gets a `sync`-labelled tracking issue that is
 updated by each failing run and closed automatically when it syncs
 again.
 
+## Deploy
+
+- **sh.qntx.org** — the `sh` Worker is connected to this repository by
+  Cloudflare Workers Builds: every push to `main` builds `apps/sh` and
+  deploys it to production within about a minute, whether or not CI ran
+  for that commit, let alone passed. Its build and deploy commands are
+  configured in the Cloudflare dashboard, not in this repository; each
+  push gets a `Workers Builds: sh` check run.
+- **sk.qntx.org** — the `sk` Worker is not connected to Workers Builds.
+  It changes only when someone deploys it, so after a `Sync` commit that
+  touches `apps/sk/` or a merged `apps/sk` change, run
+  `cd apps/sk && bun run build && bun run deploy`.
+
+Because a push to `main` is a production deploy of sh.qntx.org, `main`
+must only receive commits that already passed CI or an equivalent gate:
+
+- merges of pull requests whose CI is green (Dependabot's automatic
+  merges included — they merge only green pull requests), and
+- the `Sync` job's lock commit, which the same job builds offline
+  (`bun run build`) before it pushes.
+
+Never push to `main` directly. Commits pushed with `GITHUB_TOKEN` (the
+Sync commit, automatic Dependabot merges) trigger no `push` workflow, so
+the gate is the pull request's CI or the Sync job's build — not a CI run
+on `main`.
+
 Preview a deploy (no traffic switch) from an app dir:
 
 ```bash
 cd apps/sh && bunx wrangler versions upload
 ```
-
-## Deploy
-
-Production: `bun run deploy` from the repo root after `main` is green — it
-builds every app and runs `wrangler deploy` in each. After the `Sync`
-workflow lands a lock update, run `bun run deploy` to publish it. Previews
-(no traffic switch): `bunx wrangler versions upload` from an app dir.
 
 ## Commits
 

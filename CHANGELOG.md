@@ -4,7 +4,8 @@ All notable changes to this repository will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-`v*.*.*` tags release the `upg` crate; the apps deploy continuously.
+`v*.*.*` tags release the `upg` crate; the apps are unversioned
+(sh.qntx.org deploys on every push to `main`).
 
 ## [Unreleased]
 
@@ -68,8 +69,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/track-sync.ts` step keeps a `sync`-labelled GitHub issue per
   failing tool/source — created on first failure, updated by each
   failing run, closed automatically when it syncs again.
-- Deployment is local again via the Wrangler CLI (`bun run deploy`); the
-  `Deploy` GitHub workflow was removed and `sync.yml` is commit-only.
+- The `Deploy` GitHub workflow was removed and `sync.yml` is
+  commit-only: sh.qntx.org is deployed by Cloudflare Workers Builds on
+  every push to `main`; sk.qntx.org has no automatic deploy and changes
+  only when someone deploys it.
 - `packages/github` renamed to `packages/sync` (`@qntx/sync`): GitHub
   client, stable-release selection, lock I/O, plus shared `isRecord` and
   `sha256Hex` helpers now used by both apps.

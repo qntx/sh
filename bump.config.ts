@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 
 import { defineConfig } from "bumpp";
 
-// The Cargo workspace version is the only versioned artifact today (apps
-// deploy continuously). bumpp rewrites every `0.1.x` occurrence in
+// The Cargo workspace version is the only versioned artifact today (the
+// apps are unversioned). bumpp rewrites every `0.1.x` occurrence in
 // Cargo.toml — [workspace.package].version plus the `upg = "=x.y.z"` dep.
 const config: ReturnType<typeof defineConfig> = defineConfig({
   files: ["Cargo.toml"],
