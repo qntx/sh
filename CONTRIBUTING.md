@@ -49,6 +49,16 @@ cd apps/sh && bun run sync          # SYNC_TOOL=<key> SYNC_FORCE=true
 cd apps/sk && bun run sync          # SYNC_SOURCE=<repo>
 ```
 
+The `Sync` workflow runs hourly and also syncs `apps/sk`; each app's
+sync is atomic per tool/source — a failure keeps that entry's previous
+lock state while everything else syncs, then the run fails. To sync one
+tool/source immediately, dispatch it:
+`gh workflow run sync.yml -R qntx/sh -f tool=<key>` (or `-f
+source=<owner/repo>`); needs a token with `actions: write` on qntx/sh.
+Every failing entry gets a `sync`-labelled tracking issue that is
+updated by each failing run and closed automatically when it syncs
+again.
+
 Preview a deploy (no traffic switch) from an app dir:
 
 ```bash

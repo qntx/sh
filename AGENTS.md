@@ -16,11 +16,14 @@
 - Static site: `bun run build` renders `apps/sh/dist/` offline and
   deterministically from `catalog.json` (human) + `releases.json`
   (sync-generated lock) + `templates/`. Nothing runs at request time.
-- Only the sync task (`bun run sync` in `apps/sh`, cron every 15 min)
-  calls the GitHub API, via `@qntx/sync`; it locks the newest stable
-  `vX.Y.Z` tag, verifies every asset's `.sha256` (plus the API `digest`
-  when present), inspects archives, and refuses a shrinking target set
-  unless forced. Failures are atomic: nothing is written.
+- Only the sync tasks (`bun run sync` in `apps/sh` and `apps/sk`, hourly
+  via the `Sync` workflow) call the GitHub API, via `@qntx/sync`; sh locks
+  the newest stable `vX.Y.Z` tag, verifies every asset's `.sha256` (plus
+  the API `digest` when present), inspects archives, and refuses a
+  shrinking target set unless forced. Failures are atomic per tool or
+  source: a failing entry keeps its previous lock state while the rest
+  sync, the run ends red, and a `sync`-labelled tracking issue is opened,
+  updated, or closed for it.
 - The installer contract (flags, env vars, exit codes 0/1/2/3, receipt
   JSON) is public and additive-only. `apps/sh/templates/install.sh` is
   POSIX — no `eval`, no `local`; scripts and generated dist output are
