@@ -94,7 +94,9 @@ must only receive commits that already passed CI or an equivalent gate:
 Never push to `main` directly. Commits pushed with `GITHUB_TOKEN` (the
 Sync commit, automatic Dependabot merges) trigger no `push` workflow, so
 the gate is the pull request's CI or the Sync job's build — not a CI run
-on `main`.
+on `main`. CI also runs on `main` daily (05:41 UTC, after the Dependabot
+merges) and on `workflow_dispatch`, so `main` always has a current
+result.
 
 Preview a deploy (no traffic switch) from an app dir:
 
