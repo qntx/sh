@@ -101,7 +101,12 @@ main() {
         err 'HOME is unset'
     fi
 
-    CFG_DIR=${XDG_CONFIG_HOME:-"$HOME/.config"}
+    # XDG dirs count only when absolute (per the XDG spec, matching upg);
+    # a relative XDG_CONFIG_HOME falls back to ~/.config.
+    case ${XDG_CONFIG_HOME:-} in
+        /*) CFG_DIR=$XDG_CONFIG_HOME ;;
+        *) CFG_DIR=$HOME/.config ;;
+    esac
     RECEIPTS="$CFG_DIR/qntx/receipts"
     RECEIPT="$RECEIPTS/$TOOL.json"
 
@@ -113,7 +118,7 @@ main() {
     _m_dir=$(resolve_dir "$_m_dir")
 
     if [ "$_m_uninstall" = 1 ]; then
-        uninstall "$_m_dir" "$_m_dry"
+        uninstall "$_m_dir" "$_m_dry" "$_m_quiet"
         exit 0
     fi
 
@@ -189,7 +194,10 @@ EOF
 resolve_dir() {
     _rd_dir=$1
     if [ -z "$_rd_dir" ]; then
-        _rd_dir=${XDG_BIN_HOME:-"$HOME/.local/bin"}
+        case ${XDG_BIN_HOME:-} in
+            /*) _rd_dir=$XDG_BIN_HOME ;;
+            *) _rd_dir=$HOME/.local/bin ;;
+        esac
     fi
     case "$_rd_dir" in
         /*) ;;
@@ -247,6 +255,22 @@ candidates() {
             ;;
         *) err_platform "unsupported OS: $_c_os" ;;
     esac
+}
+
+# The locked version's target: the first host candidate whose sha256 is
+# embedded in the script (for the requested variant, if any). Prints it,
+# or exits 3 via err_platform when the lock has no build for this host;
+# the same selection for installs and --dry-run alike.
+locked_target() {
+    _lt_variant=$1
+    shift
+    for _lt_t in "$@"; do
+        if asset_sha256 "${_lt_variant:+$_lt_variant/}$_lt_t" >/dev/null 2>&1; then
+            printf '%s\n' "$_lt_t"
+            return 0
+        fi
+    done
+    err_platform "$TOOL has no prebuilt${_lt_variant:+ $_lt_variant} binary for this platform"
 }
 
 http_get() {
@@ -319,8 +343,10 @@ install() {
 
     if [ "$_i_dry" = 1 ]; then
         if [ "$_i_pinned" = 0 ]; then
-            _i_target=${_i_candidates%% *}
-            say 'Downloading' "$_i_base/$TOOL-$_i_version${_i_variant:+-$_i_variant}-$_i_target.tar.gz"
+            # shellcheck disable=SC2086
+            _i_target=$(locked_target "$_i_variant" $_i_candidates) || exit $?
+            _i_asset="$TOOL-$_i_version${_i_variant:+-$_i_variant}-$_i_target.tar.gz"
+            say 'Downloading' "$_i_base/$_i_asset"
         else
             say 'Probing' "$_i_candidates"
         fi
@@ -336,14 +362,8 @@ install() {
 
     if [ "$_i_pinned" = 0 ]; then
         # Locked version: the first candidate present in the embedded table.
-        for _i_t in $_i_candidates; do
-            if asset_sha256 "${_i_variant:+$_i_variant/}$_i_t" >/dev/null 2>&1; then
-                _i_target=$_i_t
-                break
-            fi
-        done
-        [ -n "$_i_target" ] ||
-            err_platform "$TOOL has no prebuilt${_i_variant:+ $_i_variant} binary for this platform"
+        # shellcheck disable=SC2086
+        _i_target=$(locked_target "$_i_variant" $_i_candidates) || exit $?
         _i_asset="$TOOL-$_i_version${_i_variant:+-$_i_variant}-$_i_target.tar.gz"
         _i_hash=$(asset_sha256 "${_i_variant:+$_i_variant/}$_i_target")
     else
@@ -498,7 +518,8 @@ remove_path_entry() {
 uninstall() {
     _u_dir=$1
     _u_dry=$2
-    _say_quiet=0
+    _u_quiet=$3
+    _say_quiet=$_u_quiet
     if [ -t 2 ] && [ -z "${NO_COLOR:-}" ]; then _say_color=1; else _say_color=0; fi
 
     # Touch the binary only when our receipt says we put it there.

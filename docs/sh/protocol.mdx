@@ -6,18 +6,18 @@ description: The stable sh.qntx.org installer contract — flags, exit codes, re
 The contract is additive-only: option names, environment variables, exit
 codes and the receipt format never change incompatibly.
 
-| sh option             | PowerShell      | Environment                     | Meaning                                                            |
-| --------------------- | --------------- | ------------------------------- | ------------------------------------------------------------------ |
-| `--version <x.y.z>`   | `-Version`      | `&lt;TOOL&gt;_VERSION`          | Install that version; default is the locked latest                 |
-| `--variant <name>`    | `-Variant`      | `&lt;TOOL&gt;_VARIANT`          | Install a declared build variant; default is the standard build    |
-| `--install-dir <dir>` | `-InstallDir`   | `&lt;TOOL&gt;_INSTALL_DIR`      | Absolute path; default `~/.local/bin` (`%USERPROFILE%\.local\bin`) |
-| `--no-modify-path`    | `-NoModifyPath` | `&lt;TOOL&gt;_NO_MODIFY_PATH=1` | Do not edit PATH                                                   |
-| `--force`             | `-Force`        | —                               | Reinstall even when up to date                                     |
-| `--check`             | `-Check`        | —                               | Print the target version, no network, no writes                    |
-| `--uninstall`         | `-Uninstall`    | —                               | Remove binary, receipt and PATH entry                              |
-| `--dry-run`           | `-DryRun`       | —                               | Print planned actions only                                         |
-| `--quiet`             | `-Quiet`        | —                               | Errors only                                                        |
-| `--help`              | `-Help`         | —                               | Usage                                                              |
+| sh option             | PowerShell      | Environment                     | Meaning                                                                                                |
+| --------------------- | --------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `--version <x.y.z>`   | `-Version`      | `&lt;TOOL&gt;_VERSION`          | Install that version; default is the locked latest                                                     |
+| `--variant <name>`    | `-Variant`      | `&lt;TOOL&gt;_VARIANT`          | Install a declared build variant; default is the standard build                                        |
+| `--install-dir <dir>` | `-InstallDir`   | `&lt;TOOL&gt;_INSTALL_DIR`      | Absolute path; default `$XDG_BIN_HOME` when absolute, else `~/.local/bin` (`%USERPROFILE%\.local\bin`) |
+| `--no-modify-path`    | `-NoModifyPath` | `&lt;TOOL&gt;_NO_MODIFY_PATH=1` | Do not edit PATH                                                                                       |
+| `--force`             | `-Force`        | —                               | Reinstall even when up to date                                                                         |
+| `--check`             | `-Check`        | —                               | Print the target version, no network, no writes                                                        |
+| `--uninstall`         | `-Uninstall`    | —                               | Remove binary, receipt and PATH entry                                                                  |
+| `--dry-run`           | `-DryRun`       | —                               | Print planned actions only                                                                             |
+| `--quiet`             | `-Quiet`        | —                               | Errors only                                                                                            |
+| `--help`              | `-Help`         | —                               | Usage                                                                                                  |
 
 Exit codes: `0` success (including "up to date"), `1` failure, `2` bad
 arguments (an undeclared variant name is one), `3` unsupported platform
@@ -38,7 +38,9 @@ Uninstall removes the binary only when a receipt exists and its
 anything. The PATH entry (or fish file) is removed only when no other
 receipts remain.
 
-Receipts: `~/.config/qntx/receipts/<tool>.json` on Unix,
+Receipts: `$XDG_CONFIG_HOME/qntx/receipts/<tool>.json` when
+`XDG_CONFIG_HOME` is absolute, else `~/.config/qntx/receipts/<tool>.json`
+on Unix (a relative `XDG_CONFIG_HOME` is ignored per the XDG spec),
 `%LOCALAPPDATA%\qntx\receipts\<tool>.json` on Windows:
 
 ```json
