@@ -1,0 +1,113 @@
+{
+  "release": {
+    "tag_name": "v0.4.0",
+    "draft": false,
+    "prerelease": false,
+    "immutable": false,
+    "assets": [
+      {
+        "name": "nosfry-0.4.0-aarch64-apple-darwin.cdx.json",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-aarch64-apple-darwin.cdx.json",
+        "digest": "sha256:eccbb9f4213cd391160cf243c707333c51303f41d0ef991d08a83b6d7bbae379"
+      },
+      {
+        "name": "nosfry-0.4.0-aarch64-apple-darwin.tar.gz",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-aarch64-apple-darwin.tar.gz",
+        "digest": "sha256:3e36f0471e94cd01c1a5421afb67968241dafb5ef6b6ec16906047896a589abc"
+      },
+      {
+        "name": "nosfry-0.4.0-aarch64-apple-darwin.tar.gz.sha256",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-aarch64-apple-darwin.tar.gz.sha256",
+        "digest": "sha256:c4508a23edbc3b6c40f896e23ceac47f0fa07c159271748014764115f98b219f"
+      },
+      {
+        "name": "nosfry-0.4.0-aarch64-unknown-linux-gnu.cdx.json",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-aarch64-unknown-linux-gnu.cdx.json",
+        "digest": "sha256:17e06f50031c36e6a501e3ec54e2b06852c84c1d72ab7774abaef5aea352f2aa"
+      },
+      {
+        "name": "nosfry-0.4.0-aarch64-unknown-linux-gnu.tar.gz",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-aarch64-unknown-linux-gnu.tar.gz",
+        "digest": "sha256:ce8de61285089928dcfa8482234e3e9babe59d5a065c1c5a8275de68de11c9b1"
+      },
+      {
+        "name": "nosfry-0.4.0-aarch64-unknown-linux-gnu.tar.gz.sha256",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-aarch64-unknown-linux-gnu.tar.gz.sha256",
+        "digest": "sha256:7f4ab8efb8e4d19f67e86de4d9cbcdfdc51c6a9a8929446a0aa389651c313e4a"
+      },
+      {
+        "name": "nosfry-0.4.0-onion-aarch64-apple-darwin.cdx.json",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-onion-aarch64-apple-darwin.cdx.json",
+        "digest": "sha256:f3efc2e0137ab6d9328fd0f5f72dfbbf3631bc9a59471e2c8b0e1f61d5f1cf9d"
+      },
+      {
+        "name": "nosfry-0.4.0-onion-aarch64-apple-darwin.tar.gz",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-onion-aarch64-apple-darwin.tar.gz",
+        "digest": "sha256:e23e37bbbf96e8a4f5fe220d93b24d3735c3cecffd4a4d5f8e1a60615f01941f"
+      },
+      {
+        "name": "nosfry-0.4.0-onion-aarch64-apple-darwin.tar.gz.sha256",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-onion-aarch64-apple-darwin.tar.gz.sha256",
+        "digest": "sha256:9fea5446cb15dce1ae198a58bfdc861ad0e8ab1e4999532f1c0728ae15cafd4d"
+      },
+      {
+        "name": "nosfry-0.4.0-onion-aarch64-unknown-linux-gnu.cdx.json",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-onion-aarch64-unknown-linux-gnu.cdx.json",
+        "digest": "sha256:571e353f19926d23b333cc1b3cee50ca37c965e173cf9afc6426d31d2aded81d"
+      },
+      {
+        "name": "nosfry-0.4.0-onion-aarch64-unknown-linux-gnu.tar.gz",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-onion-aarch64-unknown-linux-gnu.tar.gz",
+        "digest": "sha256:e11d55ab4ec57fe708982c99821eba857d755447a07aee6ee06c1774dae204fd"
+      },
+      {
+        "name": "nosfry-0.4.0-onion-aarch64-unknown-linux-gnu.tar.gz.sha256",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-onion-aarch64-unknown-linux-gnu.tar.gz.sha256",
+        "digest": "sha256:00994f331f9e7e51f690706e71a07635e68603d8d91bf7ca3b6836aeec0c71af"
+      },
+      {
+        "name": "nosfry-0.4.0-onion-x86_64-unknown-linux-gnu.cdx.json",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-onion-x86_64-unknown-linux-gnu.cdx.json",
+        "digest": "sha256:7f227f782daaf7a158037dd652d8076e6e73ce645e1ace8620bb5d5ca7b662e6"
+      },
+      {
+        "name": "nosfry-0.4.0-onion-x86_64-unknown-linux-gnu.tar.gz",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-onion-x86_64-unknown-linux-gnu.tar.gz",
+        "digest": "sha256:5c831a5ea280305587a551a74289ad31e91cb726f00eb0a96a49ce106e59afdb"
+      },
+      {
+        "name": "nosfry-0.4.0-onion-x86_64-unknown-linux-gnu.tar.gz.sha256",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-onion-x86_64-unknown-linux-gnu.tar.gz.sha256",
+        "digest": "sha256:d34507f147d02a3b77b559d3d200f6924981fd93d0d64f925c907752f38ba620"
+      },
+      {
+        "name": "nosfry-0.4.0-x86_64-unknown-linux-gnu.cdx.json",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-x86_64-unknown-linux-gnu.cdx.json",
+        "digest": "sha256:bb1194d30c97b6c85f0ac91266cef63403f98eccbdb4f2d18b8ddb4670dceef5"
+      },
+      {
+        "name": "nosfry-0.4.0-x86_64-unknown-linux-gnu.tar.gz",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-x86_64-unknown-linux-gnu.tar.gz",
+        "digest": "sha256:d36f4a92972f79c1d2847f2fc45096d002b23c1ebc1f3dd3bf89ef2fa443e737"
+      },
+      {
+        "name": "nosfry-0.4.0-x86_64-unknown-linux-gnu.tar.gz.sha256",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/nosfry-0.4.0-x86_64-unknown-linux-gnu.tar.gz.sha256",
+        "digest": "sha256:2d47c2f04ad43f1d0996dd0460b40359c414799f219d437e228ed8385756a173"
+      },
+      {
+        "name": "SHA256SUMS",
+        "browser_download_url": "https://github.com/qntx/nosfry/releases/download/v0.4.0/SHA256SUMS",
+        "digest": "sha256:54a4b25695ac68e00011e030e931ffbedd44380f16815bfd7cff855203deefa9"
+      }
+    ]
+  },
+  "sha256": {
+    "nosfry-0.4.0-aarch64-apple-darwin.tar.gz.sha256": "3e36f0471e94cd01c1a5421afb67968241dafb5ef6b6ec16906047896a589abc  nosfry-0.4.0-aarch64-apple-darwin.tar.gz\n",
+    "nosfry-0.4.0-aarch64-unknown-linux-gnu.tar.gz.sha256": "ce8de61285089928dcfa8482234e3e9babe59d5a065c1c5a8275de68de11c9b1  nosfry-0.4.0-aarch64-unknown-linux-gnu.tar.gz\n",
+    "nosfry-0.4.0-onion-aarch64-apple-darwin.tar.gz.sha256": "e23e37bbbf96e8a4f5fe220d93b24d3735c3cecffd4a4d5f8e1a60615f01941f  nosfry-0.4.0-onion-aarch64-apple-darwin.tar.gz\n",
+    "nosfry-0.4.0-onion-aarch64-unknown-linux-gnu.tar.gz.sha256": "e11d55ab4ec57fe708982c99821eba857d755447a07aee6ee06c1774dae204fd  nosfry-0.4.0-onion-aarch64-unknown-linux-gnu.tar.gz\n",
+    "nosfry-0.4.0-onion-x86_64-unknown-linux-gnu.tar.gz.sha256": "5c831a5ea280305587a551a74289ad31e91cb726f00eb0a96a49ce106e59afdb  nosfry-0.4.0-onion-x86_64-unknown-linux-gnu.tar.gz\n",
+    "nosfry-0.4.0-x86_64-unknown-linux-gnu.tar.gz.sha256": "d36f4a92972f79c1d2847f2fc45096d002b23c1ebc1f3dd3bf89ef2fa443e737  nosfry-0.4.0-x86_64-unknown-linux-gnu.tar.gz\n"
+  }
+}

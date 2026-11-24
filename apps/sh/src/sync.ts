@@ -1,6 +1,8 @@
 // Sync task (`bun run sync`): resolve each catalog tool's newest stable
-// release, verify assets, and rewrite releases.json. Atomic: any failure
-// writes nothing.
+// release, verify assets, and rewrite releases.json. Only the default
+// variant is locked: undeclared variants are skipped with a summary line
+// and `.cdx.json` SBOM sidecars are parsed but never fetched. Atomic:
+// any failure writes nothing.
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -94,6 +96,7 @@ type ToolResult = {
   key: string;
   entry: LockEntry;
   note: string;
+  skipped: string[];
 };
 
 async function syncTool(
@@ -169,7 +172,7 @@ async function syncTool(
   const note = didChange
     ? `${key} ${previous?.version ?? "—"} -> ${selected.version}${force ? " (force)" : ""}`
     : `${key} ${selected.version} unchanged`;
-  return { key, entry, note };
+  return { key, entry, note, skipped: selected.skipped };
 }
 
 async function main(): Promise<number> {
@@ -203,6 +206,9 @@ async function main(): Promise<number> {
         const result = await syncTool(key, spec, releases[key], force, work);
         results.push(result);
         summary.push(`- ${result.note}`);
+        for (const v of result.skipped) {
+          summary.push(`- ${key}: skipped undeclared variant ${v}`);
+        }
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         failures.push(`${key}: ${msg}`);
