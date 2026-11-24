@@ -21,6 +21,13 @@ curl -fsSL https://sh.qntx.org/kobe | sh -s -- --version 6.0.0 --no-modify-path
 & ([scriptblock]::Create((irm https://sh.qntx.org/kobe/ps))) -Version 6.0.0 -NoModifyPath
 ```
 
+Some tools ship build variants declared in their installer (`--help` lists
+them):
+
+```bash
+curl -fsSL https://sh.qntx.org/nosfry | sh -s -- --variant onion
+```
+
 Every download is verified against a SHA-256 embedded in the served script
 for the locked latest version (or the release's own `.sha256` file for a
 pinned `--version`), self-checked (`<bin> --version` must report the target

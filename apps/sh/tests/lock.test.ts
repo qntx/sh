@@ -40,7 +40,14 @@ describe("loadReleases", () => {
 
 describe("changed", () => {
   const prev = entry("1.0.0", { t1: H1 });
-  const sel = { version: "1.0.0", tag: "v1.0.0", assets: { t1: H1 }, skipped: [] as string[] };
+  const sel = {
+    version: "1.0.0",
+    tag: "v1.0.0",
+    assets: { t1: H1 },
+    variants: {} as Record<string, Record<string, string>>,
+    skipped: [] as string[],
+    unpublished: [] as string[],
+  };
 
   test("unchanged", () => {
     expect(changed(prev, sel, false)).toBe(false);
@@ -48,6 +55,32 @@ describe("changed", () => {
 
   test("skipped variants do not re-verify", () => {
     expect(changed(prev, { ...sel, skipped: ["onion"] }, false)).toBe(false);
+  });
+
+  test("unpublished declared variants do not re-verify", () => {
+    expect(changed(prev, { ...sel, unpublished: ["onion"] }, false)).toBe(false);
+  });
+
+  test("new locked variant re-verifies", () => {
+    const s = { ...sel, variants: { onion: { t1: H1 } } };
+    expect(changed(prev, s, false)).toBe(true);
+  });
+
+  test("removed locked variant re-verifies", () => {
+    const p: LockEntry = { ...prev, variants: { onion: { t1: H1 } } };
+    expect(changed(p, sel, false)).toBe(true);
+  });
+
+  test("variant hash change re-verifies", () => {
+    const p: LockEntry = { ...prev, variants: { onion: { t1: H1 } } };
+    const s = { ...sel, variants: { onion: { t1: H2 } } };
+    expect(changed(p, s, false)).toBe(true);
+  });
+
+  test("unchanged locked variant does not re-verify", () => {
+    const p: LockEntry = { ...prev, variants: { onion: { t1: H1 } } };
+    const s = { ...sel, variants: { onion: { t1: H1 } } };
+    expect(changed(p, s, false)).toBe(false);
   });
 
   test("hash change re-verifies", () => {

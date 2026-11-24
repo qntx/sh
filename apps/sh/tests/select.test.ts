@@ -21,7 +21,7 @@ describe("selectRelease", () => {
       rel("v0.10.0", assetSet("xmtp", "0.10.0", [T1])),
       rel("v0.9.9", assetSet("xmtp", "0.9.9", [T1])),
     ];
-    const s = await selectRelease("o/r", "xmtp", rs, undefined, false, sums);
+    const s = await selectRelease("o/r", "xmtp", rs, undefined, false, [], sums);
     expect(s.version).toBe("0.10.0");
   });
 
@@ -31,13 +31,13 @@ describe("selectRelease", () => {
       rel("v3.0.0", assetSet("x", "3.0.0", [T1]), { prerelease: true }),
       rel("v1.0.0", assetSet("x", "1.0.0", [T1])),
     ];
-    const s = await selectRelease("o/r", "x", rs, undefined, false, sums);
+    const s = await selectRelease("o/r", "x", rs, undefined, false, [], sums);
     expect(s.version).toBe("1.0.0");
   });
 
   test("missing .sha256 fails", async () => {
     const rs = [rel("v1.0.0", ["x-1.0.0-x86_64-unknown-linux-gnu.tar.gz"])];
-    await fails(selectRelease("o/r", "x", rs, undefined, false, sums), "missing");
+    await fails(selectRelease("o/r", "x", rs, undefined, false, [], sums), "missing");
   });
 
   test("digest mismatch fails", async () => {
@@ -45,7 +45,7 @@ describe("selectRelease", () => {
     for (const a of r.assets) {
       a.digest = `sha256:${"f".repeat(64)}`;
     }
-    await fails(selectRelease("o/r", "x", [r], undefined, false, sums), "digest");
+    await fails(selectRelease("o/r", "x", [r], undefined, false, [], sums), "digest");
   });
 
   test("target shrink fails without force, passes with force", async () => {
@@ -58,8 +58,8 @@ describe("selectRelease", () => {
       assets: { [T1]: H, [T2]: H },
     };
     const rs = [rel("v1.0.0", assetSet("x", "1.0.0", [T1]))];
-    await fails(selectRelease("o/r", "x", rs, prev, false, sums), "shrank");
-    const s = await selectRelease("o/r", "x", rs, prev, true, sums);
+    await fails(selectRelease("o/r", "x", rs, prev, false, [], sums), "shrank");
+    const s = await selectRelease("o/r", "x", rs, prev, true, [], sums);
     expect(s.version).toBe("1.0.0");
   });
 });
@@ -87,7 +87,7 @@ describe("parseShaFile shared forms", () => {
 test("x86_64-pc-windows-msvc zip is selected", async () => {
   const T = "x86_64-pc-windows-msvc";
   const rs = [rel("v1.0.0", assetSet("x", "1.0.0", [T]))];
-  const s = await selectRelease("o/r", "x", rs, undefined, false, sums);
+  const s = await selectRelease("o/r", "x", rs, undefined, false, [], sums);
   expect(s.assets[T]).toBe(H);
 });
 
@@ -96,7 +96,7 @@ test("unrecognized <bin>-<ver>-* asset fails selection", async () => {
   assets.push("x-1.0.0-x86_64-unknown-freebsd.tar.gz");
   assets.push("x-1.0.0-x86_64-unknown-freebsd.tar.gz.sha256");
   await fails(
-    selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, sums),
+    selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, [], sums),
     "unrecognized asset",
   );
 });
@@ -104,7 +104,7 @@ test("unrecognized <bin>-<ver>-* asset fails selection", async () => {
 test("other-prefix assets (bux-guest, xmtp-ffi) stay ignored", async () => {
   const assets = assetSet("bux", "0.9.0", ["x86_64-unknown-linux-gnu"]);
   assets.push("bux-guest-x86_64.bin", "ffi-v0.2.0.tar.gz");
-  const s = await selectRelease("o/r", "bux", [rel("v0.9.0", assets)], undefined, false, sums);
+  const s = await selectRelease("o/r", "bux", [rel("v0.9.0", assets)], undefined, false, [], sums);
   expect(s.version).toBe("0.9.0");
 });
 
@@ -136,6 +136,7 @@ describe("recorded fixtures", () => {
       [fx.release],
       undefined,
       false,
+      [],
       fixtureSums(fx, calls),
     );
     expect(s.version).toBe("0.4.0");
@@ -147,9 +148,44 @@ describe("recorded fixtures", () => {
       "aarch64-apple-darwin": "3e36f0471e94cd01c1a5421afb67968241dafb5ef6b6ec16906047896a589abc",
     });
     expect(s.skipped).toStrictEqual(["onion"]);
+    expect(s.unpublished).toStrictEqual([]);
     expect(calls.toSorted()).toStrictEqual([
       "nosfry-0.4.0-aarch64-apple-darwin.tar.gz.sha256",
       "nosfry-0.4.0-aarch64-unknown-linux-gnu.tar.gz.sha256",
+      "nosfry-0.4.0-x86_64-unknown-linux-gnu.tar.gz.sha256",
+    ]);
+  });
+
+  test("nosfry v0.4.0 with onion declared locks both builds", async () => {
+    const fx = recorded("nosfry-v0.4.0.json");
+    const calls: string[] = [];
+    const s = await selectRelease(
+      "qntx/nosfry",
+      "nosfry",
+      [fx.release],
+      undefined,
+      false,
+      ["onion"],
+      fixtureSums(fx, calls),
+    );
+    expect(s.version).toBe("0.4.0");
+    expect(s.variants).toStrictEqual({
+      onion: {
+        "x86_64-unknown-linux-gnu":
+          "5c831a5ea280305587a551a74289ad31e91cb726f00eb0a96a49ce106e59afdb",
+        "aarch64-unknown-linux-gnu":
+          "e11d55ab4ec57fe708982c99821eba857d755447a07aee6ee06c1774dae204fd",
+        "aarch64-apple-darwin": "e23e37bbbf96e8a4f5fe220d93b24d3735c3cecffd4a4d5f8e1a60615f01941f",
+      },
+    });
+    expect(s.skipped).toStrictEqual([]);
+    expect(s.unpublished).toStrictEqual([]);
+    expect(calls.toSorted()).toStrictEqual([
+      "nosfry-0.4.0-aarch64-apple-darwin.tar.gz.sha256",
+      "nosfry-0.4.0-aarch64-unknown-linux-gnu.tar.gz.sha256",
+      "nosfry-0.4.0-onion-aarch64-apple-darwin.tar.gz.sha256",
+      "nosfry-0.4.0-onion-aarch64-unknown-linux-gnu.tar.gz.sha256",
+      "nosfry-0.4.0-onion-x86_64-unknown-linux-gnu.tar.gz.sha256",
       "nosfry-0.4.0-x86_64-unknown-linux-gnu.tar.gz.sha256",
     ]);
   });
@@ -163,6 +199,7 @@ describe("recorded fixtures", () => {
       [fx.release],
       undefined,
       false,
+      [],
       fixtureSums(fx, calls),
     );
     const lock = JSON.parse(
@@ -231,7 +268,7 @@ describe("parseAssetName", () => {
     expect(() => parseAssetName("x", "1.0.0", name)).toThrow(/unrecognized asset/);
     const assets = [...assetSet("x", "1.0.0", ["x86_64-unknown-linux-gnu"]), name];
     await fails(
-      selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, sums),
+      selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, [], sums),
       "unrecognized asset",
     );
   });
@@ -244,7 +281,7 @@ describe("SBOM and variant selection rules", () => {
       "x-1.0.0-aarch64-apple-darwin.cdx.json",
     ];
     await fails(
-      selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, sums),
+      selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, [], sums),
       "has no archive",
     );
   });
@@ -254,8 +291,86 @@ describe("SBOM and variant selection rules", () => {
       ...assetSet("x", "1.0.0", ["x86_64-unknown-linux-gnu"]),
       "x-1.0.0-onion-x86_64-unknown-linux-gnu.tar.gz",
     ];
-    const s = await selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, sums);
+    const s = await selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, [], sums);
     expect(s.skipped).toStrictEqual(["onion"]);
     expect(s.assets["x86_64-unknown-linux-gnu"]).toBe(H);
+  });
+
+  test("declared variant with no assets in the release is unpublished", async () => {
+    const assets = assetSet("x", "1.0.0", ["x86_64-unknown-linux-gnu"]);
+    const s = await selectRelease(
+      "o/r",
+      "x",
+      [rel("v1.0.0", assets)],
+      undefined,
+      false,
+      ["onion"],
+      sums,
+    );
+    expect(s.unpublished).toStrictEqual(["onion"]);
+    expect(s.variants).toStrictEqual({});
+    expect(s.skipped).toStrictEqual([]);
+  });
+
+  test("declared variant is verified like the default build", async () => {
+    const assets = [
+      ...assetSet("x", "1.0.0", ["x86_64-unknown-linux-gnu"]),
+      "x-1.0.0-onion-x86_64-unknown-linux-gnu.tar.gz",
+      "x-1.0.0-onion-x86_64-unknown-linux-gnu.tar.gz.sha256",
+      // Orphan SBOM under the variant: fails like the default build.
+      "x-1.0.0-onion-aarch64-apple-darwin.cdx.json",
+    ];
+    await fails(
+      selectRelease("o/r", "x", [rel("v1.0.0", assets)], undefined, false, ["onion"], sums),
+      "has no archive",
+    );
+    // Missing the variant's .sha256 fails too.
+    const assets2 = [
+      ...assetSet("x", "1.0.0", ["x86_64-unknown-linux-gnu"]),
+      "x-1.0.0-onion-x86_64-unknown-linux-gnu.tar.gz",
+    ];
+    await fails(
+      selectRelease("o/r", "x", [rel("v1.0.0", assets2)], undefined, false, ["onion"], sums),
+      "missing",
+    );
+  });
+
+  test("shrinking a locked variant's targets fails", async () => {
+    const prev: LockEntry = {
+      version: "0.9.0",
+      tag: "v0.9.0",
+      commit: "a".repeat(40),
+      immutable: false,
+      description: "",
+      assets: { [T1]: H },
+      variants: { onion: { [T1]: H, [T2]: H } },
+    };
+    const assets = [
+      ...assetSet("x", "1.0.0", [T1]),
+      ...assetSet("x", "1.0.0", [T1]).map((n) => n.replace("x-1.0.0-", "x-1.0.0-onion-")),
+    ];
+    await fails(
+      selectRelease("o/r", "x", [rel("v1.0.0", assets)], prev, false, ["onion"], sums),
+      "lost onion/aarch64-apple-darwin",
+    );
+    const s = await selectRelease("o/r", "x", [rel("v1.0.0", assets)], prev, true, ["onion"], sums);
+    expect(s.variants["onion"]).toStrictEqual({ [T1]: H });
+  });
+
+  test("a locked variant that vanished entirely fails", async () => {
+    const prev: LockEntry = {
+      version: "0.9.0",
+      tag: "v0.9.0",
+      commit: "a".repeat(40),
+      immutable: false,
+      description: "",
+      assets: { [T1]: H },
+      variants: { onion: { [T1]: H } },
+    };
+    const assets = assetSet("x", "1.0.0", [T1]);
+    await fails(
+      selectRelease("o/r", "x", [rel("v1.0.0", assets)], prev, false, ["onion"], sums),
+      `lost onion/${T1}`,
+    );
   });
 });

@@ -4,7 +4,7 @@
 import { STABLE_TAG_RE, latestStable } from "@qntx/sync";
 import type { Release } from "@qntx/sync";
 
-import { SHA256_RE, TARGETS } from "./catalog.ts";
+import { SHA256_RE, TARGETS, VARIANT_RE } from "./catalog.ts";
 import type { Target } from "./catalog.ts";
 import type { LockEntry } from "./lock.ts";
 
@@ -19,16 +19,16 @@ export function isWindows(target: string): boolean {
   return target.endsWith("-pc-windows-msvc");
 }
 
-export function assetName(bin: string, version: string, target: string): string {
-  return `${bin}-${version}-${target}.${isWindows(target) ? "zip" : "tar.gz"}`;
+export function assetName(bin: string, version: string, target: string, variant?: string): string {
+  const v = variant === undefined ? "" : `-${variant}`;
+  return `${bin}-${version}${v}-${target}.${isWindows(target) ? "zip" : "tar.gz"}`;
 }
 
 // Asset grammar: `<bin>-<version>[-<variant>]-<target>.<ext>` where <ext>
 // is `zip` on Windows targets and `tar.gz` elsewhere, plus the sidecars
 // `<archive>.sha256` and `<stem>.cdx.json` (SBOM, never fetched). A
-// <variant> is a lowercase alnum segment (`onion`); names not starting
+// <variant> matches VARIANT_RE (`onion`); names not starting
 // with `<bin>-<version>-` are outside our namespace entirely.
-const VARIANT_RE: RegExp = /^[a-z][a-z0-9]*$/;
 
 export type AssetKind = "archive" | "sha256" | "sbom";
 export type ParsedAsset = { variant: string | undefined; target: Target; kind: AssetKind };
@@ -84,7 +84,9 @@ export type Selected = {
   version: string;
   tag: string;
   assets: Record<string, string>;
+  variants: Record<string, Record<string, string>>;
   skipped: string[];
+  unpublished: string[];
 };
 
 // GNU sha256sum emits `<hash>  <name>` (text mode) or `<hash> *<name>`
@@ -114,6 +116,7 @@ export async function selectRelease(
   releases: Release[],
   previous: LockEntry | undefined,
   force: boolean,
+  declared: ReadonlyArray<string>,
   shaFileText: (release: Release, asset: string) => Promise<string> | string,
 ): Promise<Selected> {
   const best = latestStable(releases);
@@ -142,53 +145,82 @@ export async function selectRelease(
       parsed.set(a.name, p);
     }
   }
+  const declaredSet = new Set(declared);
   const skipped = [
     ...new Set(
-      [...parsed.values()].map((p) => p.variant).filter((v): v is string => v !== undefined),
+      [...parsed.values()]
+        .map((p) => p.variant)
+        .filter((v): v is string => v !== undefined && !declaredSet.has(v)),
     ),
   ].toSorted();
+  // A declared variant with no assets at all is "not published in this
+  // release" — reported, not an error (the locked release may predate it).
+  const published = new Set(
+    [...parsed.values()].map((p) => p.variant).filter((v): v is string => v !== undefined),
+  );
+  const unpublished = declared.filter((v) => !published.has(v));
 
+  // The pairing rules (archive ⇔ .sha256, digest cross-check, orphan
+  // .cdx.json) are identical for the default build and every declared
+  // variant; "no supported-target assets" applies to the default only.
   const assets: Record<string, string> = {};
-  for (const target of TARGETS) {
-    const name = assetName(bin, version, target);
-    const sumName = `${name}.sha256`;
-    const sbomName = `${bin}-${version}-${target}.cdx.json`;
-    if (!byName.has(name)) {
-      if (byName.has(sbomName)) {
-        throw new SelectError(`${repo}@${best.tag_name}: ${sbomName} has no archive`);
-      }
-      if (byName.has(sumName)) {
-        throw new SelectError(`${repo}@${best.tag_name}: missing ${sumName}`);
-      }
+  const variants: Record<string, Record<string, string>> = {};
+  /* oxlint-disable no-await-in-loop */
+  for (const variant of [undefined, ...declared]) {
+    if (variant !== undefined && unpublished.includes(variant)) {
       continue;
     }
-    const sumAsset = byName.get(sumName);
-    const archiveAsset = byName.get(name);
-    if (sumAsset === undefined || archiveAsset === undefined) {
-      throw new SelectError(`${repo}@${best.tag_name}: missing ${sumName}`);
+    const out = variant === undefined ? assets : (variants[variant] ??= {});
+    for (const target of TARGETS) {
+      const name = assetName(bin, version, target, variant);
+      const sumName = `${name}.sha256`;
+      const v = variant === undefined ? "" : `-${variant}`;
+      const sbomName = `${bin}-${version}${v}-${target}.cdx.json`;
+      if (!byName.has(name)) {
+        if (byName.has(sbomName)) {
+          throw new SelectError(`${repo}@${best.tag_name}: ${sbomName} has no archive`);
+        }
+        if (byName.has(sumName)) {
+          throw new SelectError(`${repo}@${best.tag_name}: missing ${sumName}`);
+        }
+        continue;
+      }
+      const sumAsset = byName.get(sumName);
+      const archiveAsset = byName.get(name);
+      if (sumAsset === undefined || archiveAsset === undefined) {
+        throw new SelectError(`${repo}@${best.tag_name}: missing ${sumName}`);
+      }
+      const text = await shaFileText(best, sumName);
+      const hash = parseShaFile(text.trimEnd(), name);
+      const { digest } = archiveAsset;
+      if (digest !== undefined && digest !== `sha256:${hash}`) {
+        throw new SelectError(
+          `${repo}@${best.tag_name}: archive digest ${digest} != sha256:${hash} for ${name}`,
+        );
+      }
+      out[target] = hash;
     }
-    // oxlint-disable-next-line no-await-in-loop
-    const text = await shaFileText(best, sumName);
-    const hash = parseShaFile(text.trimEnd(), name);
-    const { digest } = archiveAsset;
-    if (digest !== undefined && digest !== `sha256:${hash}`) {
-      throw new SelectError(
-        `${repo}@${best.tag_name}: archive digest ${digest} != sha256:${hash} for ${name}`,
-      );
-    }
-    assets[target] = hash;
   }
-  const present = Object.keys(assets);
-  if (present.length === 0) {
+  /* oxlint-enable no-await-in-loop */
+
+  if (Object.keys(assets).length === 0) {
     throw new SelectError(`${repo}@${best.tag_name}: no supported-target assets`);
   }
   if (previous !== undefined && !force) {
     const missing = Object.keys(previous.assets).filter((t) => !(t in assets));
+    for (const [v, map] of Object.entries(previous.variants ?? {})) {
+      const now = variants[v] ?? {};
+      missing.push(
+        ...Object.keys(map)
+          .filter((t) => !(t in now))
+          .map((t) => `${v}/${t}`),
+      );
+    }
     if (missing.length > 0) {
       throw new SelectError(
         `${repo}@${best.tag_name}: target set shrank (lost ${missing.join(", ")}); rerun with force to accept`,
       );
     }
   }
-  return { version, tag: best.tag_name, assets, skipped };
+  return { version, tag: best.tag_name, assets, variants, skipped, unpublished };
 }

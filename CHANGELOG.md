@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Installable build variants end to end: the catalog declares them
+  (`variants: ["onion"]` for nosfry), sync verifies and locks their
+  archives under `variants.<name>` in `releases.json`, and both installers
+  take `--variant <name>` / `-Variant` / `<TOOL>_VARIANT` (usage error on
+  undeclared names, platform error when the variant has no binary for the
+  host). Receipts record `"variant"` on variant installs, so `upg upgrade`
+  keeps the installed variant instead of silently reverting to the
+  default build.
+
 ### Fixed
 
 - Sync parses release assets under the grammar

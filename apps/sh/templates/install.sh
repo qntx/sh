@@ -26,6 +26,7 @@ main() {
     _m_dry=0
     _m_quiet=0
     _m_pinned=0
+    _m_variant=''
 
     if [ -n "$CFG_VERSION" ]; then
         _m_version="$CFG_VERSION"
@@ -35,6 +36,7 @@ main() {
         _m_dir="$CFG_INSTALL_DIR"
     fi
     [ "$CFG_NO_MODIFY_PATH" = '1' ] && _m_no_path=1
+    [ -n "$CFG_VARIANT" ] && _m_variant="$CFG_VARIANT"
 
     while [ $# -gt 0 ]; do
         _m_opt=$1
@@ -58,6 +60,14 @@ main() {
                 _m_dir=$1
                 ;;
             --no-modify-path) _m_no_path=1 ;;
+            --variant=*)
+                _m_variant=${_m_opt#*=}
+                ;;
+            --variant)
+                shift
+                [ $# -gt 0 ] || usage_error '--variant requires a value'
+                _m_variant=$1
+                ;;
             --force) _m_force=1 ;;
             --check) _m_check=1 ;;
             --uninstall) _m_uninstall=1 ;;
@@ -75,6 +85,16 @@ main() {
     if ! printf '%s' "$_m_version" |
         grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
         usage_error "version must be x.y.z[-suffix]: $_m_version"
+    fi
+
+    if [ -n "$_m_variant" ]; then
+        if [ -z "$VARIANTS" ]; then
+            usage_error "$TOOL has no variants"
+        fi
+        case " $VARIANTS " in
+            *" $_m_variant "*) ;;
+            *) usage_error "unknown variant: $_m_variant (available: $VARIANTS)" ;;
+        esac
     fi
 
     if [ -z "${HOME:-}" ]; then
@@ -97,7 +117,7 @@ main() {
         exit 0
     fi
 
-    install "$_m_version" "$_m_dir" "$_m_pinned" "$_m_force" "$_m_dry" "$_m_quiet" "$_m_no_path"
+    install "$_m_version" "$_m_dir" "$_m_pinned" "$_m_force" "$_m_dry" "$_m_quiet" "$_m_no_path" "$_m_variant"
 }
 
 usage_error() {
@@ -132,6 +152,11 @@ err_platform() {
 have() { command -v "$1" >/dev/null 2>&1; }
 
 usage() {
+    if [ -n "$VARIANTS" ]; then
+        _u_var=" (available: $VARIANTS)"
+    else
+        _u_var=' (none)'
+    fi
     cat <<EOF
 Installer for $TOOL ($REPO), locked at $VERSION.
 
@@ -142,6 +167,7 @@ Options:
   --version <x.y.z>     Install a specific version (default: $VERSION)
   --install-dir <dir>   Install directory (default: ~/.local/bin)
   --no-modify-path      Do not add the install dir to PATH
+  --variant <name>      Install a build variant$_u_var
   --force               Reinstall even when up to date
   --check               Print the target version and exit
   --uninstall           Remove the binary, receipt and PATH entry
@@ -153,6 +179,7 @@ Environment:
   ${ENV_PREFIX}_VERSION         Same as --version
   ${ENV_PREFIX}_INSTALL_DIR     Same as --install-dir
   ${ENV_PREFIX}_NO_MODIFY_PATH  1 = same as --no-modify-path
+  ${ENV_PREFIX}_VARIANT         Same as --variant
   NO_COLOR                      Disable colored output
 EOF
 }
@@ -268,14 +295,18 @@ install() {
     _i_dry=$5
     _i_quiet=$6
     _i_no_path=$7
+    _i_variant=$8
     _say_quiet=$_i_quiet
     if [ -t 2 ] && [ -z "${NO_COLOR:-}" ]; then _say_color=1; else _say_color=0; fi
 
-    # Idempotency: receipt version + dir match and the binary exists.
+    # Idempotency: receipt version + dir + variant match and the binary
+    # exists (a receipt without "variant" reads as the default build).
     if [ "$_i_force" = 0 ] && [ -f "$RECEIPT" ] && [ -f "$_i_dir/$TOOL" ]; then
         _i_rv=$(receipt_fields version)
         _i_rd=$(receipt_fields install_dir)
-        if [ "$_i_rv" = "$_i_version" ] && [ "$_i_rd" = "$_i_dir" ]; then
+        _i_rvar=$(receipt_fields variant)
+        if [ "$_i_rv" = "$_i_version" ] && [ "$_i_rd" = "$_i_dir" ] &&
+            [ "$_i_rvar" = "$_i_variant" ]; then
             say 'Skipping' "$TOOL $_i_version is up to date"
             exit 0
         fi
@@ -289,7 +320,7 @@ install() {
     if [ "$_i_dry" = 1 ]; then
         if [ "$_i_pinned" = 0 ]; then
             _i_target=${_i_candidates%% *}
-            say 'Downloading' "$_i_base/$TOOL-$_i_version-$_i_target.tar.gz"
+            say 'Downloading' "$_i_base/$TOOL-$_i_version${_i_variant:+-$_i_variant}-$_i_target.tar.gz"
         else
             say 'Probing' "$_i_candidates"
         fi
@@ -306,21 +337,21 @@ install() {
     if [ "$_i_pinned" = 0 ]; then
         # Locked version: the first candidate present in the embedded table.
         for _i_t in $_i_candidates; do
-            if asset_sha256 "$_i_t" >/dev/null 2>&1; then
+            if asset_sha256 "${_i_variant:+$_i_variant/}$_i_t" >/dev/null 2>&1; then
                 _i_target=$_i_t
                 break
             fi
         done
         [ -n "$_i_target" ] ||
-            err_platform "$TOOL has no prebuilt binary for this platform"
-        _i_asset="$TOOL-$_i_version-$_i_target.tar.gz"
-        _i_hash=$(asset_sha256 "$_i_target")
+            err_platform "$TOOL has no prebuilt${_i_variant:+ $_i_variant} binary for this platform"
+        _i_asset="$TOOL-$_i_version${_i_variant:+-$_i_variant}-$_i_target.tar.gz"
+        _i_hash=$(asset_sha256 "${_i_variant:+$_i_variant/}$_i_target")
     else
         # Pinned version: probe the candidates' .sha256 URLs in order; the
         # first that downloads wins under the same musl-first rule.
         _i_got=''
         for _i_t in $_i_candidates; do
-            _i_a="$TOOL-$_i_version-$_i_t.tar.gz"
+            _i_a="$TOOL-$_i_version${_i_variant:+-$_i_variant}-$_i_t.tar.gz"
             if http_get "$_i_base/$_i_a.sha256" "$_i_tmp/sum" 2>/dev/null; then
                 _i_target=$_i_t
                 _i_asset=$_i_a
@@ -346,7 +377,7 @@ install() {
         esac
     fi
 
-    say 'Downloading' "$TOOL $_i_version ($_i_target)"
+    say 'Downloading' "$TOOL $_i_version${_i_variant:+ $_i_variant} ($_i_target)"
     http_get "$_i_base/$_i_asset" "$_i_tmp/$_i_asset" ||
         err "failed to download $_i_base/$_i_asset"
 
@@ -387,8 +418,13 @@ install() {
     mv -f "$_i_dir/.$TOOL.tmp.$$" "$_i_dir/$TOOL"
 
     mkdir -p "$RECEIPTS"
-    printf '{"schema":1,"tool":"%s","version":"%s","install_dir":"%s"}\n' \
-        "$TOOL" "$_i_version" "$_i_dir" >"$RECEIPTS/.$TOOL.tmp.$$"
+    if [ -n "$_i_variant" ]; then
+        printf '{"schema":1,"tool":"%s","version":"%s","variant":"%s","install_dir":"%s"}\n' \
+            "$TOOL" "$_i_version" "$_i_variant" "$_i_dir" >"$RECEIPTS/.$TOOL.tmp.$$"
+    else
+        printf '{"schema":1,"tool":"%s","version":"%s","install_dir":"%s"}\n' \
+            "$TOOL" "$_i_version" "$_i_dir" >"$RECEIPTS/.$TOOL.tmp.$$"
+    fi
     mv -f "$RECEIPTS/.$TOOL.tmp.$$" "$RECEIPT"
     say 'Installed' "$_i_dir/$TOOL"
 

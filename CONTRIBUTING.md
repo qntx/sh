@@ -32,7 +32,7 @@ shellcheck -s sh apps/sh/tests/e2e/unix.sh
 for f in apps/sh/dist/*.sh; do shfmt -i 4 -ci -d "$f"; done
 shfmt -i 4 -ci -d apps/sh/tests/e2e/unix.sh
 sh apps/sh/tests/e2e/unix.sh apps/sh/dist/kobe.sh
-PIN_VERSION=0.4.0 sh apps/sh/tests/e2e/unix.sh apps/sh/dist/nosfry.sh
+PIN_VERSION=0.4.0 VARIANT=onion sh apps/sh/tests/e2e/unix.sh apps/sh/dist/nosfry.sh
 npx --yes markdownlint-cli2@0.23.3 "*.md" "docs/**/*.mdx"
 bun run test:contract
 cargo fmt --all --check

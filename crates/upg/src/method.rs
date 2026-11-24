@@ -91,6 +91,7 @@ mod tests {
             schema: 1,
             tool: "kobe".to_owned(),
             version: "6.0.0".to_owned(),
+            variant: None,
             install_dir: dir.to_owned(),
         }
     }

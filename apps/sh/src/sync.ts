@@ -1,8 +1,8 @@
 // Sync task (`bun run sync`): resolve each catalog tool's newest stable
-// release, verify assets, and rewrite releases.json. Only the default
-// variant is locked: undeclared variants are skipped with a summary line
-// and `.cdx.json` SBOM sidecars are parsed but never fetched. Atomic:
-// any failure writes nothing.
+// release, verify assets, and rewrite releases.json. The default build
+// and every catalog-declared variant are locked; undeclared variants are
+// skipped with a summary line and `.cdx.json` SBOM sidecars are parsed
+// but never fetched. Atomic: any failure writes nothing.
 
 import { createHash } from "node:crypto";
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -41,6 +41,7 @@ type ToolResult = {
   entry: LockEntry;
   note: string;
   skipped: string[];
+  unpublished: string[];
 };
 
 async function syncTool(
@@ -69,6 +70,7 @@ async function syncTool(
     all,
     previous,
     force,
+    spec.variants ?? [],
     async (release, name) => {
       const asset = release.assets.find((a) => a.name === name);
       if (asset === undefined) {
@@ -92,22 +94,31 @@ async function syncTool(
     description,
     assets: selected.assets,
   };
+  if (Object.keys(selected.variants).length > 0) {
+    entry.variants = selected.variants;
+  }
 
   if (didChange) {
+    const locked: Array<[string | undefined, Record<string, string>]> = [
+      [undefined, selected.assets],
+      ...Object.entries(selected.variants),
+    ];
     /* oxlint-disable no-await-in-loop */
-    for (const [target, hash] of Object.entries(selected.assets)) {
-      const name = assetName(key, selected.version, target);
-      const url = `https://github.com/${spec.repo}/releases/download/${selected.tag}/${name}`;
-      const dest = join(work, name);
-      await download(url, dest);
-      const got = sha256(new Uint8Array(readFileSync(dest)));
-      if (got !== hash) {
-        fail(key, `archive hash mismatch for ${name}: got ${got}, expected ${hash}`);
-      }
-      if (isWindows(target)) {
-        inspectZip(key, key, name, dest);
-      } else {
-        inspectTar(key, key, name, dest);
+    for (const [variant, map] of locked) {
+      for (const [target, hash] of Object.entries(map)) {
+        const name = assetName(key, selected.version, target, variant);
+        const url = `https://github.com/${spec.repo}/releases/download/${selected.tag}/${name}`;
+        const dest = join(work, name);
+        await download(url, dest);
+        const got = sha256(new Uint8Array(readFileSync(dest)));
+        if (got !== hash) {
+          fail(key, `archive hash mismatch for ${name}: got ${got}, expected ${hash}`);
+        }
+        if (isWindows(target)) {
+          inspectZip(key, key, name, dest);
+        } else {
+          inspectTar(key, key, name, dest);
+        }
       }
     }
     /* oxlint-enable no-await-in-loop */
@@ -116,7 +127,7 @@ async function syncTool(
   const note = didChange
     ? `${key} ${previous?.version ?? "—"} -> ${selected.version}${force ? " (force)" : ""}`
     : `${key} ${selected.version} unchanged`;
-  return { key, entry, note, skipped: selected.skipped };
+  return { key, entry, note, skipped: selected.skipped, unpublished: selected.unpublished };
 }
 
 async function main(): Promise<number> {
@@ -152,6 +163,9 @@ async function main(): Promise<number> {
         summary.push(`- ${result.note}`);
         for (const v of result.skipped) {
           summary.push(`- ${key}: skipped undeclared variant ${v}`);
+        }
+        for (const v of result.unpublished) {
+          summary.push(`- ${key}: declared variant ${v} not published in ${result.entry.tag}`);
         }
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

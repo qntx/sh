@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 
 import { describe, expect, test } from "vite-plus/test";
@@ -41,5 +42,14 @@ describe("dist", () => {
     for (const f of files.filter((n) => n.endsWith(".sh"))) {
       expect(readFileSync(`dist/${f}`, "utf8")).not.toContain("@qntx-constants");
     }
+  });
+
+  test.each([
+    ["nosfry.sh", "  --variant <name>      Install a build variant (available: onion)"],
+    ["kobe.sh", "  --variant <name>      Install a build variant (none)"],
+  ])("%s --help lists declared variants", (script, line) => {
+    const r = spawnSync("sh", [`dist/${script}`, "--help"], { encoding: "utf8" });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain(`${line}\n`);
   });
 });

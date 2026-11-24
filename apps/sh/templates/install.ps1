@@ -22,6 +22,7 @@ param(
     # holds the locked latest version.
     [Alias('Version')]
     [string]$Pin,
+    [string]$Variant,
     [string]$InstallDir,
     [switch]$NoModifyPath,
     [switch]$Force,
@@ -75,6 +76,7 @@ Usage:
 
 Parameters:
   -Version <x.y.z>    Install a specific version (default: $Version)
+  -Variant <name>     Install a build variant$(if ($Variants.Count -gt 0) { " (available: $($Variants -join ' '))" } else { ' (none)' })
   -InstallDir <dir>   Install directory (default: `$env:USERPROFILE\.local\bin)
   -NoModifyPath       Do not add the install dir to user PATH
   -Force              Reinstall even when up to date
@@ -88,6 +90,7 @@ Environment:
   ${EnvPrefix}_VERSION         Same as -Version
   ${EnvPrefix}_INSTALL_DIR     Same as -InstallDir
   ${EnvPrefix}_NO_MODIFY_PATH  1 = same as -NoModifyPath
+  ${EnvPrefix}_VARIANT         Same as -Variant
   NO_COLOR                     Disable colored output
 "@
 }
@@ -110,8 +113,12 @@ function Get-Target {
         'Arm64' { $t = 'aarch64-pc-windows-msvc' }
         default { throw (Get-PlatformError "unsupported architecture: $arch") }
     }
-    if (-not $script:Pinned -and -not $Sha256.Contains($t)) {
-        throw (Get-PlatformError "$Tool has no prebuilt binary for $t")
+    if (-not $script:Pinned) {
+        $sumKey = if ($Variant) { "$Variant/$t" } else { $t }
+        if (-not $Sha256.Contains($sumKey)) {
+            $what = if ($Variant) { "$Variant binary" } else { 'binary' }
+            throw (Get-PlatformError "$Tool has no prebuilt $what for $t")
+        }
     }
     $t
 }
@@ -128,12 +135,16 @@ function Read-Receipt {
 
 function Write-Receipt([string]$Dir, [string]$Ver) {
     New-Item -ItemType Directory -Force -Path $script:Receipts | Out-Null
-    $json = [ordered]@{
+    # "variant" is written only for variant installs; default receipts are
+    # byte-identical to the schema that predates variants.
+    $fields = [ordered]@{
         schema = 1
         tool = $Tool
         version = $Ver
-        install_dir = $Dir
-    } | ConvertTo-Json -Compress
+    }
+    if ($Variant) { $fields['variant'] = $Variant }
+    $fields['install_dir'] = $Dir
+    $json = $fields | ConvertTo-Json -Compress
     $tmp = Join-Path $script:Receipts ".$Tool.tmp.$PID"
     [IO.File]::WriteAllText($tmp, $json + "`n")
     Move-Item -LiteralPath $tmp -Destination $script:Receipt -Force
@@ -174,6 +185,7 @@ function Install-Tool {
     if (-not $DoForce) {
         $r = Read-Receipt
         if ($r -and $r.version -eq $Ver -and $r.install_dir -eq $Dir `
+                -and ([string]$r.variant) -eq ([string]$Variant) `
                 -and (Test-Path -LiteralPath (Join-Path $Dir "$Tool.exe") -PathType Leaf)) {
             Write-Status 'Skipping' "$Tool $Ver is up to date"
             return
@@ -181,7 +193,8 @@ function Install-Tool {
     }
 
     $t = Get-Target
-    $asset = "$Tool-$Ver-$t.zip"
+    $vsuffix = if ($Variant) { "-$Variant" } else { '' }
+    $asset = "$Tool-$Ver$vsuffix-$t.zip"
     $base = "https://github.com/$Repo/releases/download/v$Ver"
 
     if ($DoDry) {
@@ -221,11 +234,12 @@ function Install-Tool {
             }
         }
         else {
-            $hash = $Sha256[$t]
-            if (-not $hash) { throw (Get-InstallError 1 "no embedded sha256 for $t") }
+            $sumKey = if ($Variant) { "$Variant/$t" } else { $t }
+            $hash = $Sha256[$sumKey]
+            if (-not $hash) { throw (Get-InstallError 1 "no embedded sha256 for $sumKey") }
         }
 
-        Write-Status 'Downloading' "$Tool $Ver ($t)"
+        Write-Status 'Downloading' "$Tool $Ver$(if ($Variant) { " $Variant" }) ($t)"
         $ap = Join-Path $tmp $asset
         Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile $ap | Out-Null
 
@@ -328,6 +342,7 @@ try {
     $envVersion = [Environment]::GetEnvironmentVariable("${EnvPrefix}_VERSION")
     $envDir = [Environment]::GetEnvironmentVariable("${EnvPrefix}_INSTALL_DIR")
     $envNoPath = [Environment]::GetEnvironmentVariable("${EnvPrefix}_NO_MODIFY_PATH")
+    $envVariant = [Environment]::GetEnvironmentVariable("${EnvPrefix}_VARIANT")
 
     $script:Pinned = $false
     $target = $Version
@@ -335,6 +350,15 @@ try {
     elseif ($envVersion) { $target = $envVersion; $script:Pinned = $true }
     if ($target -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
         throw (Get-InstallError 2 "version must be x.y.z[-suffix]: $target")
+    }
+    if (-not $Variant) { $Variant = $envVariant }
+    if ($Variant) {
+        if ($Variants.Count -eq 0) {
+            throw (Get-InstallError 2 "$Tool has no variants")
+        }
+        if ($Variants -cnotcontains $Variant) {
+            throw (Get-InstallError 2 "unknown variant: $Variant (available: $($Variants -join ' '))")
+        }
     }
     if (-not $InstallDir) { $InstallDir = $envDir }
     if ($envNoPath -eq '1') { $NoModifyPath = [switch]::Present }

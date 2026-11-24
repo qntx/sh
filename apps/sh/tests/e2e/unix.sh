@@ -26,6 +26,30 @@ v=$(sh "$script" --check)
 echo "locked version: $v"
 zeros=$(printf '0%.0s' $(seq 64))
 
+# Unknown variant names are a usage error (exit 2) and touch nothing.
+rc=0
+sh "$script" --install-dir "$d" --no-modify-path --variant zzz 2>/dev/null || rc=$?
+if [ "$rc" != 2 ]; then
+    echo "--variant zzz exited $rc, expected 2" >&2
+    exit 1
+fi
+test ! -e "$receipt"
+test ! -e "$d/$bin"
+
+# Variant names are case-sensitive: the uppercased declared name is
+# still unknown (VARIANT is set by the caller, e.g. VARIANT=onion).
+if [ -n "${VARIANT-}" ]; then
+    rc=0
+    sh "$script" --install-dir "$d" --no-modify-path \
+        --variant "$(printf '%s' "$VARIANT" | tr '[:lower:]' '[:upper:]')" 2>/dev/null || rc=$?
+    if [ "$rc" != 2 ]; then
+        echo "--variant uppercased VARIANT exited $rc, expected 2" >&2
+        exit 1
+    fi
+    test ! -e "$receipt"
+    test ! -e "$d/$bin"
+fi
+
 # Fresh install
 sh "$script" --install-dir "$d" --no-modify-path --quiet
 test -x "$d/$bin"
@@ -41,6 +65,42 @@ sh "$script" --install-dir "$d" --no-modify-path --quiet --force
 if [ -n "${PIN_VERSION-5.0.0}" ]; then
     sh "$script" --install-dir "$d" --no-modify-path --quiet --version "${PIN_VERSION:-5.0.0}"
     "$d/$bin" --version | grep -q "${PIN_VERSION:-5.0.0}"
+fi
+
+# Declared build variant (e.g. nosfry onion), driven by VARIANT + a pin —
+# the pinned path probes the variant's .sha256 like the default build's.
+if [ -n "${VARIANT-}" ] && [ -n "${PIN_VERSION-}" ]; then
+    sh "$script" --install-dir "$d" --no-modify-path --quiet \
+        --version "$PIN_VERSION" --variant "$VARIANT"
+    "$d/$bin" --version | grep -q "$PIN_VERSION"
+    grep -qF "\"variant\":\"$VARIANT\"" "$receipt"
+
+    # Same version + variant again: the idempotency check short-circuits
+    # before any download, which the "Skipping" line proves.
+    out=$(sh "$script" --install-dir "$d" --no-modify-path \
+        --version "$PIN_VERSION" --variant "$VARIANT" 2>&1) || {
+        printf '%s\n' "$out" >&2
+        exit 1
+    }
+    printf '%s\n' "$out" | grep -q 'Skipping' || {
+        printf 'expected skip, got:\n%s\n' "$out" >&2
+        exit 1
+    }
+
+    # The <PREFIX>_VARIANT env var selects a variant like --variant does.
+    prefix=$(printf '%s' "$tool" | tr 'a-z-' 'A-Z_')
+    env "${prefix}_VARIANT=$VARIANT" sh "$script" --install-dir "$d" \
+        --no-modify-path --quiet --version "$PIN_VERSION" --force
+    grep -qF "\"variant\":\"$VARIANT\"" "$receipt"
+
+    # Back to the default build at the same pinned version: reinstalls
+    # (receipt variant no longer matches) and writes no "variant" key.
+    sh "$script" --install-dir "$d" --no-modify-path --quiet --version "$PIN_VERSION"
+    "$d/$bin" --version | grep -q "$PIN_VERSION"
+    if grep -qF '"variant"' "$receipt"; then
+        echo "receipt kept a variant key" >&2
+        exit 1
+    fi
 fi
 
 # Running-binary replacement: `kobe evm -m -` blocks reading a mnemonic

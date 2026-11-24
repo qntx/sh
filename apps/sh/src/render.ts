@@ -2,7 +2,15 @@
 // a template with generated constant definitions. Fails when the marker is
 // missing or duplicated, or any rendered value is unsafe.
 
-import { ENV_PREFIX_RE, KEY_RE, PACKAGE_RE, REPO_RE, SHA256_RE, envPrefix } from "./catalog.ts";
+import {
+  ENV_PREFIX_RE,
+  KEY_RE,
+  PACKAGE_RE,
+  REPO_RE,
+  SHA256_RE,
+  VARIANT_RE,
+  envPrefix,
+} from "./catalog.ts";
 import type { Catalog, ToolSpec } from "./catalog.ts";
 import { VERSION_RE } from "./lock.ts";
 import type { LockEntry, Releases } from "./lock.ts";
@@ -35,6 +43,15 @@ function checkCommon(tool: string, spec: ToolSpec, lock: LockEntry): string {
   for (const [target, hash] of Object.entries(lock.assets)) {
     assert(SHA256_RE, hash, `sha256 for ${target}`);
   }
+  for (const v of spec.variants ?? []) {
+    assert(VARIANT_RE, v, "variant");
+  }
+  for (const [v, map] of Object.entries(lock.variants ?? {})) {
+    assert(VARIANT_RE, v, "locked variant");
+    for (const [target, hash] of Object.entries(map)) {
+      assert(SHA256_RE, hash, `sha256 for ${v}/${target}`);
+    }
+  }
   return prefix;
 }
 
@@ -46,14 +63,21 @@ export function renderSh(tool: string, spec: ToolSpec, lock: LockEntry): string 
     `PACKAGE='${spec.package ?? ""}'`,
     `VERSION='${lock.version}'`,
     `ENV_PREFIX='${prefix}'`,
+    `VARIANTS='${(spec.variants ?? []).join(" ")}'`,
     `CFG_VERSION=\${${prefix}_VERSION-}`,
     `CFG_INSTALL_DIR=\${${prefix}_INSTALL_DIR-}`,
     `CFG_NO_MODIFY_PATH=\${${prefix}_NO_MODIFY_PATH-}`,
+    `CFG_VARIANT=\${${prefix}_VARIANT-}`,
     "asset_sha256() {",
     '    case "$1" in',
   ];
   for (const [target, hash] of Object.entries(lock.assets)) {
     lines.push(`        ${target}) printf '%s' '${hash}' ;;`);
+  }
+  for (const [variant, map] of Object.entries(lock.variants ?? {})) {
+    for (const [target, hash] of Object.entries(map)) {
+      lines.push(`        ${variant}/${target}) printf '%s' '${hash}' ;;`);
+    }
   }
   lines.push("        *) return 1 ;;", "    esac", "}");
   return lines.join("\n");
@@ -61,16 +85,23 @@ export function renderSh(tool: string, spec: ToolSpec, lock: LockEntry): string 
 
 export function renderPs1(tool: string, spec: ToolSpec, lock: LockEntry): string {
   const prefix = checkCommon(tool, spec, lock);
+  const variants = (spec.variants ?? []).map((v) => `'${v}'`).join(", ");
   const lines = [
     `$Tool = '${tool}'`,
     `$Repo = '${spec.repo}'`,
     `$Package = '${spec.package ?? ""}'`,
     `$Version = '${lock.version}'`,
     `$EnvPrefix = '${prefix}'`,
+    `$Variants = @(${variants})`,
     "$Sha256 = [ordered]@{",
   ];
   for (const [target, hash] of Object.entries(lock.assets)) {
     lines.push(`    '${target}' = '${hash}'`);
+  }
+  for (const [variant, map] of Object.entries(lock.variants ?? {})) {
+    for (const [target, hash] of Object.entries(map)) {
+      lines.push(`    '${variant}/${target}' = '${hash}'`);
+    }
   }
   lines.push("}");
   return lines.join("\n");

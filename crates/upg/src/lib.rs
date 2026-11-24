@@ -92,7 +92,8 @@ pub fn run(tool: &Tool, args: &Args) -> Result<Report, Error> {
             if pinned.is_none() && !args.force && !update_available {
                 return Ok(report(tool, current, latest, Action::UpToDate));
             }
-            let code = installer.install(&dir, pinned, args.force)?;
+            let variant = receipt.as_ref().and_then(|r| r.variant.as_deref());
+            let code = installer.install(&dir, pinned, variant, args.force)?;
             match code {
                 Some(0) => Ok(report(
                     tool,

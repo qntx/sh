@@ -6,9 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { parseCatalog } from "./catalog.ts";
-import type { Catalog } from "./catalog.ts";
-import { parseReleases } from "./lock.ts";
-import type { Releases } from "./lock.ts";
+import { parseReleases, validateReleases } from "./lock.ts";
 import {
   assertAscii,
   renderIndexPs1,
@@ -25,14 +23,6 @@ function fail(msg: string): never {
   throw new Error(msg);
 }
 
-function validate(catalog: Catalog, releases: Releases): void {
-  const cKeys = Object.keys(catalog).toSorted();
-  const rKeys = Object.keys(releases).toSorted();
-  if (JSON.stringify(cKeys) !== JSON.stringify(rKeys)) {
-    fail(`catalog/lock key mismatch: catalog=[${cKeys.join(",")}] releases=[${rKeys.join(",")}]`);
-  }
-}
-
 function writeOut(name: string, content: string | Uint8Array): void {
   writeFileSync(join(DIST, name), content);
 }
@@ -40,7 +30,7 @@ function writeOut(name: string, content: string | Uint8Array): void {
 function main(): void {
   const catalog = parseCatalog(JSON.parse(readFileSync(join(ROOT, "catalog.json"), "utf8")));
   const releases = parseReleases(JSON.parse(readFileSync(join(ROOT, "releases.json"), "utf8")));
-  validate(catalog, releases);
+  validateReleases(catalog, releases);
 
   const tplSh = readFileSync(join(ROOT, "templates/install.sh"), "utf8");
   const tplPs1 = readFileSync(join(ROOT, "templates/install.ps1"), "utf8");
