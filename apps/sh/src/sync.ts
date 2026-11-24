@@ -25,10 +25,11 @@ import type { SyncStatus } from "@qntx/sync";
 
 import { parseCatalog, sanitizeDescription } from "./catalog.ts";
 import type { ToolSpec } from "./catalog.ts";
+import { archiveExt } from "./contract.ts";
 import { inspectTar, inspectZip } from "./inspect.ts";
 import type { LockEntry } from "./lock.ts";
 import { changed, loadReleases, mergeReleases, pickToolKeys } from "./lock.ts";
-import { assetName, isWindows, selectRelease } from "./select.ts";
+import { assetName, selectRelease } from "./select.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
@@ -118,10 +119,10 @@ async function syncTool(
         if (got !== hash) {
           fail(key, `archive hash mismatch for ${name}: got ${got}, expected ${hash}`);
         }
-        if (isWindows(target)) {
-          inspectZip(key, key, name, dest);
+        if (archiveExt(target) === "zip") {
+          inspectZip(key, key, name, target, dest);
         } else {
-          inspectTar(key, key, name, dest);
+          inspectTar(key, key, name, target, dest);
         }
       }
     }

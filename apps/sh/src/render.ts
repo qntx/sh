@@ -2,16 +2,9 @@
 // a template with generated constant definitions. Fails when the marker is
 // missing or duplicated, or any rendered value is unsafe.
 
-import {
-  ENV_PREFIX_RE,
-  KEY_RE,
-  PACKAGE_RE,
-  REPO_RE,
-  SHA256_RE,
-  VARIANT_RE,
-  envPrefix,
-} from "./catalog.ts";
+import { ENV_PREFIX_RE, KEY_RE, PACKAGE_RE, REPO_RE, SHA256_RE, envPrefix } from "./catalog.ts";
 import type { Catalog, ToolSpec } from "./catalog.ts";
+import { VARIANT_RE } from "./contract.ts";
 import { VERSION_RE } from "./lock.ts";
 import type { LockEntry, Releases } from "./lock.ts";
 

@@ -4,8 +4,8 @@
 import { STABLE_TAG_RE, latestStable } from "@qntx/sync";
 import type { Release } from "@qntx/sync";
 
-import { SHA256_RE, TARGETS, VARIANT_RE } from "./catalog.ts";
-import type { Target } from "./catalog.ts";
+import { SHA256_RE } from "./catalog.ts";
+import { TARGETS, VARIANT_RE, archiveExt } from "./contract.ts";
 import type { LockEntry } from "./lock.ts";
 
 export class SelectError extends Error {
@@ -15,23 +15,20 @@ export class SelectError extends Error {
   }
 }
 
-export function isWindows(target: string): boolean {
-  return target.endsWith("-pc-windows-msvc");
-}
-
 export function assetName(bin: string, version: string, target: string, variant?: string): string {
   const v = variant === undefined ? "" : `-${variant}`;
-  return `${bin}-${version}${v}-${target}.${isWindows(target) ? "zip" : "tar.gz"}`;
+  return `${bin}-${version}${v}-${target}.${archiveExt(target)}`;
 }
 
-// Asset grammar: `<bin>-<version>[-<variant>]-<target>.<ext>` where <ext>
-// is `zip` on Windows targets and `tar.gz` elsewhere, plus the sidecars
-// `<archive>.sha256` and `<stem>.cdx.json` (SBOM, never fetched). A
-// <variant> matches VARIANT_RE (`onion`); names not starting
-// with `<bin>-<version>-` are outside our namespace entirely.
+// Asset grammar (contract/release-assets.json):
+// `<bin>-<version>[-<variant>]-<target>.<ext>` where <ext> is the
+// target's archive extension, plus the sidecars `<archive>.sha256` and
+// `<stem>.cdx.json` (SBOM, never fetched). A <variant> matches
+// VARIANT_RE (`onion`); names not starting with `<bin>-<version>-` are
+// outside our namespace entirely.
 
 export type AssetKind = "archive" | "sha256" | "sbom";
-export type ParsedAsset = { variant: string | undefined; target: Target; kind: AssetKind };
+export type ParsedAsset = { variant: string | undefined; target: string; kind: AssetKind };
 
 // Parse one release asset name. Returns undefined outside the
 // `<bin>-<version>-` namespace; throws when inside it but unparseable —
@@ -49,7 +46,7 @@ export function parseAssetName(
   const rest = name.slice(prefix.length);
   const matches: ParsedAsset[] = [];
   for (const target of TARGETS) {
-    const ext = isWindows(target) ? "zip" : "tar.gz";
+    const ext = archiveExt(target);
     const suffixes: ReadonlyArray<readonly [string, AssetKind]> = [
       [`${target}.${ext}`, "archive"],
       [`${target}.${ext}.sha256`, "sha256"],

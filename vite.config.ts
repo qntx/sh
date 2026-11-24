@@ -18,6 +18,9 @@ const config: UserConfig = defineConfig({
       "apps/*/dist/**",
       // Skill bytes are hash-locked to upstream — never reformat them.
       "apps/sk/content/**",
+      // Vendored release-asset contract, kept byte-identical with
+      // qntx/workflows contract/release-assets.json — never reformat it.
+      "apps/sh/contract/**",
     ],
   },
   lint: merge(lintPreset, {
