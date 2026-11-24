@@ -53,7 +53,7 @@ different variant replaces the install.
 
 Trust model: every byte served corresponds to a commit in the public
 qntx/sh repository. For the locked latest version the expected SHA-256 comes
-from sh.qntx.org (reviewed git history) while the archive comes from GitHub —
-two sources cross-checked. Repositories with GitHub immutable releases are
-recorded in the lock. Verify an asset independently with
+from sh.qntx.org (the public git history of the lock) while the archive
+comes from GitHub — two sources cross-checked. Repositories with GitHub
+immutable releases are recorded in the lock. Verify an asset independently with
 `gh release verify-asset v6.0.0 kobe-6.0.0-aarch64-apple-darwin.tar.gz -R qntx/kobe`.

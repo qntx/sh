@@ -68,8 +68,9 @@ jobs:
           SYNC_SOURCE: ${{ inputs.source }}
           SYNC_STATUS: ${{ runner.temp }}/sk-status.json
 
-      # The same offline build the deploy runs; a broken lock must
-      # fail before anything is committed.
+      # Cloudflare Workers Builds deploys apps/sh to production from every
+      # push to main, this lock commit included: a broken lock must fail
+      # this offline build before anything is committed.
       - run: bun run build
 
       - name: Commit lock and tools
