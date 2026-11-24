@@ -20,7 +20,7 @@ env:
 
 jobs:
   ci:
-    uses: qntx/workflows/.github/workflows/ci-bun.yml@v2
+    uses: qntx/workflows/.github/workflows/ci-bun.yml@461b483156e434d004b0d936e24cca6b9aabd659
     with:
       rust: true
       scripts: test:contract
@@ -28,7 +28,7 @@ jobs:
       contents: read
 
   rust:
-    uses: qntx/workflows/.github/workflows/ci-rust.yml@v2
+    uses: qntx/workflows/.github/workflows/ci-rust.yml@461b483156e434d004b0d936e24cca6b9aabd659
     permissions:
       contents: read
     with:
@@ -37,7 +37,7 @@ jobs:
       doc: true
 
   rust-minimal:
-    uses: qntx/workflows/.github/workflows/ci-rust.yml@v2
+    uses: qntx/workflows/.github/workflows/ci-rust.yml@461b483156e434d004b0d936e24cca6b9aabd659
     permissions:
       contents: read
     with:
