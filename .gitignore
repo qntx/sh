@@ -12,6 +12,7 @@ dist
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+.cache/
 
 # Rust
 /target

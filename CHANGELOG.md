@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Sync parses release assets under the grammar
+  `<bin>-<version>[-<variant>]-<target>.<ext>` with `.sha256` (required)
+  and `.cdx.json` SBOM (optional, never fetched) sidecars, so nosfry
+  v0.4.0 no longer fails as an unrecognized asset; variants the catalog
+  does not declare are skipped with a summary line. Unparseable names in
+  the `<bin>-<version>-` namespace still fail the sync.
+- Sync verification and both installers accept archives that nest the
+  binary under a single top-level `<archive-stem>/` directory, matching
+  the layout nosfry v0.4.0 ships.
+
 ### Changed
 
 - Deployment is local again via the Wrangler CLI (`bun run deploy`); the
