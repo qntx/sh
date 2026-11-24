@@ -6,7 +6,7 @@
 
 import { spawnSync } from "node:child_process";
 
-import { isRecord, parseStatus, planIssues, subjectsFrom } from "@qntx/sync";
+import { deploySubject, isRecord, parseStatus, planIssues, subjectsFrom } from "@qntx/sync";
 import type { IssueAction, OpenIssue, Subject } from "@qntx/sync";
 
 function env(name: string): string {
@@ -59,7 +59,11 @@ function main(): number {
     return 1;
   }
 
-  const subjects = [...subjectsFor("sh", env("SH_STATUS")), ...subjectsFor("sk", env("SK_STATUS"))];
+  const subjects = [
+    ...subjectsFor("sh", env("SH_STATUS")),
+    ...subjectsFor("sk", env("SK_STATUS")),
+    ...deploySubject(env("SK_DEPLOY"), env("SK_DEPLOY_ERROR")),
+  ];
   if (subjects.length === 0) {
     process.stdout.write("No sync status; nothing to track.\n");
     return 0;
