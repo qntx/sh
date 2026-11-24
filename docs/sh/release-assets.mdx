@@ -1,0 +1,71 @@
+---
+title: Release assets
+description: The naming and layout contract for the GitHub Release assets that sh.qntx.org installs — for tool authors.
+---
+
+To have a release installable through sh.qntx.org, its GitHub Release
+assets follow a contract. It is pinned in
+`apps/sh/contract/release-assets.json` — a byte-identical copy of
+qntx/workflows `contract/release-assets.json` plus the `layout` member —
+and enforced by the `Sync` workflow.
+
+## Naming grammar
+
+```text
+<bin>-<version>[-<variant>]-<target>.<ext>
+```
+
+- `<bin>` — the binary name.
+- `<version>` — the tag without its leading `v` (`v0.4.0` → `0.4.0`).
+- `<variant>` — optional build variant, `^[a-z][a-z0-9]*$` (`onion`).
+- `<target>` — one of the supported triples below.
+- `<ext>` — the archive extension for that target.
+
+## Targets
+
+| Triple                       | Archive   |
+| ---------------------------- | --------- |
+| `x86_64-unknown-linux-gnu`   | `.tar.gz` |
+| `aarch64-unknown-linux-gnu`  | `.tar.gz` |
+| `x86_64-unknown-linux-musl`  | `.tar.gz` |
+| `aarch64-unknown-linux-musl` | `.tar.gz` |
+| `aarch64-apple-darwin`       | `.tar.gz` |
+| `x86_64-pc-windows-msvc`     | `.zip`    |
+| `aarch64-pc-windows-msvc`    | `.zip`    |
+
+## Sidecars
+
+Every archive needs a `.sha256` checksum file named after it
+(`<bin>-<version>[-<variant>]-<target>.<ext>.sha256`). It contains one
+line; the accepted forms are `<hash>  <name>` (sha256sum text mode),
+`<hash> *<name>` (binary mode), and `dist/<name>` as the recorded path.
+An optional CycloneDX SBOM `<bin>-<version>[-<variant>]-<target>.cdx.json`
+may sit next to each archive; sync never fetches it. A `SHA256SUMS`
+aggregate file is outside the `<bin>-<version>-` namespace and is
+ignored.
+
+## Archive layout
+
+Exactly one binary member per archive:
+
+- `tar.gz`: `./<bin>` or `<stem>/<bin>` — flat, or nested under a single
+  top-level directory named after the archive without `.tar.gz`.
+- `zip`: `<bin>.exe` or `<stem>/<bin>.exe` — the same two shapes.
+
+Link entries, absolute paths and `..` components are rejected.
+
+## Variants
+
+Assets of undeclared variants parse fine but are skipped — not fetched,
+not checked. Declare a variant in `apps/sh/catalog.json` (`"variants":
+["onion"]`) to have it verified, locked under `variants.<name>` in
+`releases.json`, and installable via `--variant <name>`.
+
+## Drift and cadence
+
+A name inside the `<bin>-<version>-` namespace that does not parse is
+naming drift: that tool's sync fails, its `sync`-labelled tracking issue
+opens (or is updated), and every other tool keeps syncing. Sync runs
+hourly; release pipelines that need a fresh lock immediately can
+dispatch `gh workflow run sync.yml -R qntx/sh -f tool=<key>` (needs a
+token with `actions: write` on qntx/sh).

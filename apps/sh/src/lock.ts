@@ -5,8 +5,9 @@ import { existsSync, readFileSync } from "node:fs";
 
 import { isRecord } from "@qntx/sync";
 
-import { KEY_RE, SHA256_RE, TARGETS, VARIANT_RE, sanitizeDescription } from "./catalog.ts";
+import { KEY_RE, SHA256_RE, sanitizeDescription } from "./catalog.ts";
 import type { Catalog } from "./catalog.ts";
+import { TARGETS, VARIANT_RE } from "./contract.ts";
 import type { Selected } from "./select.ts";
 
 export const VERSION_RE: RegExp = /^\d+\.\d+\.\d+$/;

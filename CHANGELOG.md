@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The release-asset contract is pinned, not implied:
+  `apps/sh/contract/release-assets.json` is a byte-identical copy of
+  qntx/workflows' contract plus a `layout` member, and the supported
+  target triples, per-target archive extension, variant pattern, and
+  archive layout rule are all derived from it (`src/contract.ts`) — no
+  other definition exists. Its examples are the test corpus for the
+  asset-name parser, and the installers' candidate triples and archive
+  member names are checked against it by test. Documented for tool
+  authors in docs/sh/release-assets.mdx.
 - Installable build variants end to end: the catalog declares them
   (`variants: ["onion"]` for nosfry), sync verifies and locks their
   archives under `variants.<name>` in `releases.json`, and both installers

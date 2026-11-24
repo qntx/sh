@@ -20,10 +20,12 @@
   via the `Sync` workflow) call the GitHub API, via `@qntx/sync`; sh locks
   the newest stable `vX.Y.Z` tag, verifies every asset's `.sha256` (plus
   the API `digest` when present), inspects archives, and refuses a
-  shrinking target set unless forced. Failures are atomic per tool or
-  source: a failing entry keeps its previous lock state while the rest
-  sync, the run ends red, and a `sync`-labelled tracking issue is opened,
-  updated, or closed for it.
+  shrinking target set unless forced. The supported targets and the
+  archive layout rule come from `apps/sh/contract/release-assets.json`
+  (a byte-identical copy of qntx/workflows' contract plus `layout`).
+  Failures are atomic per tool or source: a failing entry keeps its
+  previous lock state while the rest sync, the run ends red, and a
+  `sync`-labelled tracking issue is opened, updated, or closed for it.
 - The installer contract (flags, env vars, exit codes 0/1/2/3, receipt
   JSON) is public and additive-only. `apps/sh/templates/install.sh` is
   POSIX — no `eval`, no `local`; scripts and generated dist output are

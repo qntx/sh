@@ -1,5 +1,5 @@
 {
   "title": "sh.qntx.org",
   "description": "Static install-script service for QuantX CLIs.",
-  "pages": ["install", "protocol"]
+  "pages": ["install", "protocol", "release-assets"]
 }

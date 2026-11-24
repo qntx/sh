@@ -1,26 +1,14 @@
 // Catalog and lock-file validation. No schema library: small strict
 // validators that reject unknown fields and bad shapes.
 
+import { VARIANT_RE } from "./contract.ts";
+
 export const KEY_RE: RegExp = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 export const REPO_RE: RegExp = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 export const PACKAGE_RE: RegExp = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
 export const SHA256_RE: RegExp = /^[0-9a-f]{64}$/;
-export const VARIANT_RE: RegExp = /^[a-z][a-z0-9]*$/;
 export const ENV_PREFIX_RE: RegExp = /^[A-Z0-9_]+$/;
 export const RESERVED_KEYS: ReadonlySet<string> = new Set(["index", "ps"]);
-
-// Every target triple release-rust can emit, including the opt-in musl
-// builds. The single source of truth for sync, build and templates.
-export const TARGETS = [
-  "x86_64-unknown-linux-gnu",
-  "aarch64-unknown-linux-gnu",
-  "x86_64-unknown-linux-musl",
-  "aarch64-unknown-linux-musl",
-  "aarch64-apple-darwin",
-  "x86_64-pc-windows-msvc",
-  "aarch64-pc-windows-msvc",
-] as const;
-export type Target = (typeof TARGETS)[number];
 
 export type ToolSpec = {
   repo: string;

@@ -49,43 +49,51 @@ describe("inspectTar", () => {
   test("flat ./<bin> is accepted", () => {
     const d = join(work(), "src");
     put(d, "x");
-    expect(() => inspectTar("x", "x", TAR_NAME, tgz(d, ["./x"]))).not.toThrow();
+    expect(() =>
+      inspectTar("x", "x", TAR_NAME, "aarch64-apple-darwin", tgz(d, ["./x"])),
+    ).not.toThrow();
   });
 
   test("nested <stem>/<bin> is accepted", () => {
     const d = join(work(), "src");
     put(d, `${TAR_STEM}/x`);
-    expect(() => inspectTar("x", "x", TAR_NAME, tgz(d, [TAR_STEM]))).not.toThrow();
+    expect(() =>
+      inspectTar("x", "x", TAR_NAME, "aarch64-apple-darwin", tgz(d, [TAR_STEM])),
+    ).not.toThrow();
   });
 
   test("both layouts fail as ambiguous", () => {
     const d = join(work(), "src");
     put(d, "x");
     put(d, `${TAR_STEM}/x`);
-    expect(() => inspectTar("x", "x", TAR_NAME, tgz(d, ["./x", TAR_STEM]))).toThrow(
-      /ambiguous layout/,
-    );
+    expect(() =>
+      inspectTar("x", "x", TAR_NAME, "aarch64-apple-darwin", tgz(d, ["./x", TAR_STEM])),
+    ).toThrow(/ambiguous layout/);
   });
 
   test("no binary fails naming both paths", () => {
     const d = join(work(), "src");
     put(d, "README");
-    expect(() => inspectTar("x", "x", TAR_NAME, tgz(d, ["README"]))).toThrow(
-      /has no executable \.\/x or x-1\.0\.0-aarch64-apple-darwin\/x/,
-    );
+    expect(() =>
+      inspectTar("x", "x", TAR_NAME, "aarch64-apple-darwin", tgz(d, ["README"])),
+    ).toThrow(/has no executable \.\/x or x-1\.0\.0-aarch64-apple-darwin\/x/);
   });
 
   test("a non-executable ./<bin> does not count", () => {
     const d = join(work(), "src");
     put(d, "x", 0o644);
-    expect(() => inspectTar("x", "x", TAR_NAME, tgz(d, ["./x"]))).toThrow(/has no executable/);
+    expect(() => inspectTar("x", "x", TAR_NAME, "aarch64-apple-darwin", tgz(d, ["./x"]))).toThrow(
+      /has no executable/,
+    );
   });
 
   test("link entries fail", () => {
     const d = join(work(), "src");
     put(d, "x");
     symlinkSync("x", join(d, "link"));
-    expect(() => inspectTar("x", "x", TAR_NAME, tgz(d, ["./x", "link"]))).toThrow(/link entry/);
+    expect(() =>
+      inspectTar("x", "x", TAR_NAME, "aarch64-apple-darwin", tgz(d, ["./x", "link"])),
+    ).toThrow(/link entry/);
   });
 });
 
@@ -93,29 +101,39 @@ describe("inspectZip", () => {
   test("flat <bin>.exe is accepted", () => {
     const d = join(work(), "src");
     put(d, "x.exe");
-    expect(() => inspectZip("x", "x", ZIP_NAME, zipf(d, ["x.exe"]))).not.toThrow();
+    expect(() =>
+      inspectZip("x", "x", ZIP_NAME, "x86_64-pc-windows-msvc", zipf(d, ["x.exe"])),
+    ).not.toThrow();
   });
 
   test("nested <stem>/<bin>.exe is accepted", () => {
     const d = join(work(), "src");
     put(d, `${ZIP_STEM}/x.exe`);
-    expect(() => inspectZip("x", "x", ZIP_NAME, zipf(d, [`${ZIP_STEM}/x.exe`]))).not.toThrow();
+    expect(() =>
+      inspectZip("x", "x", ZIP_NAME, "x86_64-pc-windows-msvc", zipf(d, [`${ZIP_STEM}/x.exe`])),
+    ).not.toThrow();
   });
 
   test("both layouts fail as ambiguous", () => {
     const d = join(work(), "src");
     put(d, "x.exe");
     put(d, `${ZIP_STEM}/x.exe`);
-    expect(() => inspectZip("x", "x", ZIP_NAME, zipf(d, ["x.exe", `${ZIP_STEM}/x.exe`]))).toThrow(
-      /ambiguous layout/,
-    );
+    expect(() =>
+      inspectZip(
+        "x",
+        "x",
+        ZIP_NAME,
+        "x86_64-pc-windows-msvc",
+        zipf(d, ["x.exe", `${ZIP_STEM}/x.exe`]),
+      ),
+    ).toThrow(/ambiguous layout/);
   });
 
   test("no binary fails naming both paths", () => {
     const d = join(work(), "src");
     put(d, "README");
-    expect(() => inspectZip("x", "x", ZIP_NAME, zipf(d, ["README"]))).toThrow(
-      /has no x\.exe or x-1\.0\.0-x86_64-pc-windows-msvc\/x\.exe/,
-    );
+    expect(() =>
+      inspectZip("x", "x", ZIP_NAME, "x86_64-pc-windows-msvc", zipf(d, ["README"])),
+    ).toThrow(/has no x\.exe or x-1\.0\.0-x86_64-pc-windows-msvc\/x\.exe/);
   });
 });

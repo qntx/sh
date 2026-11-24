@@ -1,10 +1,12 @@
-// Archive member inspection for sync verification. The binary must sit
-// at exactly one of two places: `./<bin>` (flat) or `<stem>/<bin>`
-// (single top-level directory, stem = archive name minus its
-// extension). Link entries and unsafe paths are always rejected. The
-// installers extract with the same rule.
+// Archive member inspection for sync verification. The contract's
+// layout.members give the two legal spots: flat (`./<bin>` /
+// `<bin>.exe`) or nested under a single top-level `<stem>/` directory
+// (stem = archive name minus its extension). Link entries and unsafe
+// paths are always rejected. The installers extract with the same rule.
 
 import { spawnSync } from "node:child_process";
+
+import { layoutMembers } from "./contract.ts";
 
 function fail(tool: string, msg: string): never {
   throw new Error(`${tool}: ${msg}`);
@@ -14,10 +16,15 @@ function fail(tool: string, msg: string): never {
 // last; owner/group/date field counts differ between them.
 const TAR_LINE_RE = /^(\S+)\s.*\s(\S+)$/;
 
-export function inspectTar(tool: string, bin: string, name: string, file: string): void {
+export function inspectTar(
+  tool: string,
+  bin: string,
+  name: string,
+  target: string,
+  file: string,
+): void {
   const stem = name.slice(0, -".tar.gz".length);
-  const flat = `./${bin}`;
-  const nested = `${stem}/${bin}`;
+  const [flat, nested] = layoutMembers(target, bin, stem);
   const out = spawnSync("tar", ["-tvzf", file], { encoding: "utf8" });
   if (out.status !== 0) {
     fail(tool, `tar -tvzf failed: ${(out.stderr ?? "").trim()}`);
@@ -58,10 +65,15 @@ export function inspectTar(tool: string, bin: string, name: string, file: string
   }
 }
 
-export function inspectZip(tool: string, bin: string, name: string, file: string): void {
+export function inspectZip(
+  tool: string,
+  bin: string,
+  name: string,
+  target: string,
+  file: string,
+): void {
   const stem = name.slice(0, -".zip".length);
-  const flat = `${bin}.exe`;
-  const nested = `${stem}/${bin}.exe`;
+  const [flat, nested] = layoutMembers(target, bin, stem);
   const out = spawnSync("unzip", ["-Z1", file], { encoding: "utf8" });
   if (out.status !== 0) {
     fail(tool, `unzip -Z1 failed: ${(out.stderr ?? "").trim()}`);
