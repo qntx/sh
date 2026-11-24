@@ -37,6 +37,16 @@ fi
 test ! -e "$receipt"
 test ! -e "$d/$bin"
 
+# A relative --install-dir is likewise a usage error (exit 2) and
+# touches nothing.
+rc=0
+sh "$script" --install-dir rel --no-modify-path 2>/dev/null || rc=$?
+if [ "$rc" != 2 ]; then
+    echo "--install-dir rel exited $rc, expected 2" >&2
+    exit 1
+fi
+test ! -e "$receipt"
+
 # Variant names are case-sensitive: the uppercased declared name is
 # still unknown (VARIANT is set by the caller, e.g. VARIANT=onion).
 if [ -n "${VARIANT-}" ]; then

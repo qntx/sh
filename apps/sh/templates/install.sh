@@ -193,7 +193,12 @@ EOF
 # later embedded into rc files and the JSON receipt unescaped).
 resolve_dir() {
     _rd_dir=$1
-    if [ -z "$_rd_dir" ]; then
+    # A user-supplied dir that fails validation is bad arguments (exit 2);
+    # a default-derived dir failing them is an environment failure (1).
+    if [ -n "$_rd_dir" ]; then
+        _rd_fail=usage_error
+    else
+        _rd_fail=err
         case ${XDG_BIN_HOME:-} in
             /*) _rd_dir=$XDG_BIN_HOME ;;
             *) _rd_dir=$HOME/.local/bin ;;
@@ -201,13 +206,13 @@ resolve_dir() {
     fi
     case "$_rd_dir" in
         /*) ;;
-        *) err "install dir must be an absolute path: $_rd_dir" ;;
+        *) "$_rd_fail" "install dir must be an absolute path: $_rd_dir" ;;
     esac
     case "$_rd_dir" in
-        *//* | *..*) err "unsafe install dir: $_rd_dir" ;;
+        *//* | *..*) "$_rd_fail" "unsafe install dir: $_rd_dir" ;;
     esac
     case "$_rd_dir" in
-        *[!A-Za-z0-9/._+-]*) err "install dir has unsafe characters: $_rd_dir" ;;
+        *[!A-Za-z0-9/._+-]*) "$_rd_fail" "install dir has unsafe characters: $_rd_dir" ;;
     esac
     printf '%s\n' "$_rd_dir"
 }

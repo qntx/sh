@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An install directory supplied by `--install-dir`/`-InstallDir`/
+  `<TOOL>_INSTALL_DIR` that is not absolute or contains unsafe
+  characters exited 1 although the documented contract reserves 2 for
+  bad arguments; it now exits 2 in both installers. A default directory
+  derived from `XDG_BIN_HOME`/home failing the same checks is still an
+  environment failure (1).
 - `install.sh --uninstall` ignored `--quiet` and always printed progress
   lines; it now honours it (errors only), matching `-Quiet` on Windows.
 - `install.sh --dry-run` on a locked install printed the first host

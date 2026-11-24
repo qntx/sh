@@ -34,6 +34,12 @@ if ($LASTEXITCODE -ne 2) { throw "-Variant zzz exit $LASTEXITCODE, expected 2" }
 if (Test-Path "$d/kobe.exe") { throw 'binary installed despite bad variant' }
 if (Test-Path $receipt) { throw 'receipt written despite bad variant' }
 
+# A relative -InstallDir is likewise a usage error (exit 2).
+$global:LASTEXITCODE = 0
+& $sb -InstallDir 'rel' 2>$null
+if ($LASTEXITCODE -ne 2) { throw "-InstallDir rel exit $LASTEXITCODE, expected 2" }
+if (Test-Path $receipt) { throw 'receipt written despite bad install dir' }
+
 # irm-style invocation (env-driven).
 $global:LASTEXITCODE = 0
 Invoke-Expression $src

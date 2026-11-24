@@ -20,8 +20,12 @@ codes and the receipt format never change incompatibly.
 | `--help`              | `-Help`         | —                               | Usage                                                                                                  |
 
 Exit codes: `0` success (including "up to date"), `1` failure, `2` bad
-arguments (an undeclared variant name is one), `3` unsupported platform
-(including a variant that has no binary for this platform).
+arguments (an undeclared variant name is one, and so is an install
+directory given by `--install-dir`/`-InstallDir`/`&lt;TOOL&gt;_INSTALL_DIR`
+that is not absolute or contains unsafe characters; a default directory
+derived from `XDG_BIN_HOME`/home failing the same checks is `1`), `3`
+unsupported platform (including a variant that has no binary for this
+platform).
 
 The PowerShell installer never calls `exit` — that would kill the user's
 shell under `irm … | iex`. It writes `error: …` to stderr and sets

@@ -96,12 +96,15 @@ Environment:
 }
 
 function Resolve-InstallDir([string]$Dir) {
+    # A user-supplied dir that fails validation is bad arguments (exit 2);
+    # a default-derived dir failing them is an environment failure (1).
+    $code = if ($Dir) { 2 } else { 1 }
     if (-not $Dir) { $Dir = Join-Path $env:USERPROFILE '.local\bin' }
     if (-not [IO.Path]::IsPathRooted($Dir)) {
-        throw (Get-InstallError 1 "install dir must be an absolute path: $Dir")
+        throw (Get-InstallError $code "install dir must be an absolute path: $Dir")
     }
     if ($Dir -match '\.\.' -or $Dir -match '[\x00-\x1F]') {
-        throw (Get-InstallError 1 "unsafe install dir: $Dir")
+        throw (Get-InstallError $code "unsafe install dir: $Dir")
     }
     $Dir
 }
