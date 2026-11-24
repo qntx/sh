@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Sync lock commits and automatic Dependabot merges are pushed with
+  # GITHUB_TOKEN and trigger no push run, so main can go weeks without CI.
+  # A daily run (after the 04:00 UTC Dependabot merges) keeps a current
+  # signal on main and re-runs the e2e against the latest lock.
+  schedule:
+    - cron: "41 5 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
