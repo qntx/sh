@@ -9,6 +9,7 @@ codes and the receipt format never change incompatibly.
 | sh option             | PowerShell      | Environment                     | Meaning                                                            |
 | --------------------- | --------------- | ------------------------------- | ------------------------------------------------------------------ |
 | `--version <x.y.z>`   | `-Version`      | `&lt;TOOL&gt;_VERSION`          | Install that version; default is the locked latest                 |
+| `--variant <name>`    | `-Variant`      | `&lt;TOOL&gt;_VARIANT`          | Install a declared build variant; default is the standard build    |
 | `--install-dir <dir>` | `-InstallDir`   | `&lt;TOOL&gt;_INSTALL_DIR`      | Absolute path; default `~/.local/bin` (`%USERPROFILE%\.local\bin`) |
 | `--no-modify-path`    | `-NoModifyPath` | `&lt;TOOL&gt;_NO_MODIFY_PATH=1` | Do not edit PATH                                                   |
 | `--force`             | `-Force`        | —                               | Reinstall even when up to date                                     |
@@ -19,7 +20,8 @@ codes and the receipt format never change incompatibly.
 | `--help`              | `-Help`         | —                               | Usage                                                              |
 
 Exit codes: `0` success (including "up to date"), `1` failure, `2` bad
-arguments, `3` unsupported platform.
+arguments (an undeclared variant name is one), `3` unsupported platform
+(including a variant that has no binary for this platform).
 
 The PowerShell installer never calls `exit` — that would kill the user's
 shell under `irm … | iex`. It writes `error: …` to stderr and sets
@@ -42,6 +44,10 @@ Receipts: `~/.config/qntx/receipts/<tool>.json` on Unix,
 ```json
 { "schema": 1, "tool": "kobe", "version": "6.0.0", "install_dir": "/home/x/.local/bin" }
 ```
+
+A `variant` field (`"variant": "onion"`) appears only on variant installs;
+its absence means the default build. Reinstalling the same version with a
+different variant replaces the install.
 
 Trust model: every byte served corresponds to a commit in the public
 qntx/sh repository. For the locked latest version the expected SHA-256 comes

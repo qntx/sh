@@ -139,7 +139,7 @@ jobs:
         if: matrix.os != 'windows-2022'
         run: |
           sh apps/sh/tests/e2e/unix.sh apps/sh/dist/kobe.sh
-          PIN_VERSION=0.4.0 sh apps/sh/tests/e2e/unix.sh apps/sh/dist/nosfry.sh
+          PIN_VERSION=0.4.0 VARIANT=onion sh apps/sh/tests/e2e/unix.sh apps/sh/dist/nosfry.sh
       - name: Windows e2e (PowerShell 7)
         if: matrix.os == 'windows-2022'
         shell: pwsh

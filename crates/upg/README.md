@@ -29,6 +29,8 @@ println!("{}", upg::run(&TOOL, &args)?);
 Script bytes are fetched once per `run` (curl, wget fallback); PowerShell
 invocation ends with `; exit $LASTEXITCODE` so the process exit code is the
 installer's. Child stdout is redirected to stderr so callers can print JSON.
+An installed build variant (`--variant` at install time, recorded in the
+receipt) is preserved: the installer is re-run with the same variant.
 
 ## License
 

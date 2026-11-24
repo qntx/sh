@@ -29,6 +29,11 @@ describe("renderSh", () => {
     expect(() => renderSh("kobe", spec, { ...lock, version: "6; rm -rf /" })).toThrow("unsafe");
   });
 
+  test("invalid variant name rejected", () => {
+    const bad: ToolSpec = { ...spec, variants: ["on-ion"] };
+    expect(() => renderSh("kobe", bad, lock)).toThrow("unsafe");
+  });
+
   test("constants block for kobe", () => {
     expect(renderSh("kobe", spec, lock)).toBe(
       [
@@ -37,12 +42,15 @@ describe("renderSh", () => {
         "PACKAGE='kobe-cli'",
         "VERSION='6.0.0'",
         "ENV_PREFIX='KOBE'",
+        "VARIANTS=''",
         // oxlint-disable-next-line no-template-curly-in-string
         "CFG_VERSION=${KOBE_VERSION-}",
         // oxlint-disable-next-line no-template-curly-in-string
         "CFG_INSTALL_DIR=${KOBE_INSTALL_DIR-}",
         // oxlint-disable-next-line no-template-curly-in-string
         "CFG_NO_MODIFY_PATH=${KOBE_NO_MODIFY_PATH-}",
+        // oxlint-disable-next-line no-template-curly-in-string
+        "CFG_VARIANT=${KOBE_VARIANT-}",
         "asset_sha256() {",
         '    case "$1" in',
         `        aarch64-apple-darwin) printf '%s' '${"b".repeat(64)}' ;;`,
@@ -51,6 +59,40 @@ describe("renderSh", () => {
         "}",
       ].join("\n"),
     );
+  });
+
+  test("variant constants block", () => {
+    const vSpec: ToolSpec = { repo: "qntx/nosfry", variants: ["onion"] };
+    const vLock: LockEntry = {
+      ...lock,
+      variants: { onion: { "aarch64-apple-darwin": "c".repeat(64) } },
+    };
+    const out = renderSh("nosfry", vSpec, vLock);
+    expect(out).toContain("VARIANTS='onion'");
+    // oxlint-disable-next-line no-template-curly-in-string
+    expect(out).toContain("CFG_VARIANT=${NOSFRY_VARIANT-}");
+    expect(out).toContain(`aarch64-apple-darwin) printf '%s' '${"b".repeat(64)}' ;;`);
+    expect(out).toContain(`onion/aarch64-apple-darwin) printf '%s' '${"c".repeat(64)}' ;;`);
+  });
+});
+
+describe("renderPs1", () => {
+  test("variant hash keys and list", async () => {
+    const { renderPs1 } = await import("../src/render.ts");
+    const vSpec: ToolSpec = { repo: "qntx/nosfry", variants: ["onion"] };
+    const vLock: LockEntry = {
+      ...lock,
+      variants: { onion: { "x86_64-pc-windows-msvc": "d".repeat(64) } },
+    };
+    const out = renderPs1("nosfry", vSpec, vLock);
+    expect(out).toContain("$Variants = @('onion')");
+    expect(out).toContain(`'aarch64-apple-darwin' = '${"b".repeat(64)}'`);
+    expect(out).toContain(`'onion/x86_64-pc-windows-msvc' = '${"d".repeat(64)}'`);
+  });
+
+  test("no variants renders an empty list", async () => {
+    const { renderPs1 } = await import("../src/render.ts");
+    expect(renderPs1("kobe", spec, lock)).toContain("$Variants = @()");
   });
 });
 

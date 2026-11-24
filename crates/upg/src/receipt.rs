@@ -20,6 +20,9 @@ pub(crate) struct Receipt {
     pub tool: String,
     /// Installed version string (kept verbatim for the lock check).
     pub version: String,
+    /// Build variant (`onion`), present only on variant installs.
+    #[serde(default)]
+    pub variant: Option<String>,
     /// Install directory recorded at install time.
     pub install_dir: String,
 }
@@ -64,7 +67,19 @@ pub(crate) fn parse_receipt(tool: &str, contents: &str) -> Result<Receipt, Error
             receipt.tool
         )));
     }
+    if let Some(v) = &receipt.variant
+        && !valid_variant(v)
+    {
+        return Err(Error::Receipt(format!("invalid variant {v:?}")));
+    }
     Ok(receipt)
+}
+
+/// Catalog variant names: `^[a-z][a-z0-9]*$`.
+fn valid_variant(v: &str) -> bool {
+    v.chars().next().is_some_and(|c| c.is_ascii_lowercase())
+        && v.chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
 }
 
 #[cfg(test)]
@@ -118,6 +133,37 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn parse_variant() {
+        let r = parse_receipt(
+            "nosfry",
+            r#"{"schema":1,"tool":"nosfry","version":"0.4.0","variant":"onion","install_dir":"/d"}"#,
+        );
+        assert_eq!(r.ok().and_then(|r| r.variant), Some("onion".to_owned()));
+    }
+
+    #[test]
+    fn parse_no_variant() {
+        let r = parse_receipt(
+            "kobe",
+            r#"{"schema":1,"tool":"kobe","version":"6.0.0","install_dir":"/d"}"#,
+        );
+        assert_eq!(r.ok().and_then(|r| r.variant), None);
+    }
+
+    #[test]
+    fn parse_bad_variant_fails() {
+        for v in ["Onion", "1onion", "on-ion", ""] {
+            let json = format!(
+                r#"{{"schema":1,"tool":"kobe","version":"6.0.0","variant":"{v}","install_dir":"/d"}}"#
+            );
+            assert!(
+                matches!(parse_receipt("kobe", &json), Err(Error::Receipt(_))),
+                "variant {v:?} accepted"
+            );
+        }
     }
 
     #[test]

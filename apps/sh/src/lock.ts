@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 import { isRecord } from "@qntx/sync";
 
-import { KEY_RE, SHA256_RE, TARGETS, sanitizeDescription } from "./catalog.ts";
+import { KEY_RE, SHA256_RE, TARGETS, VARIANT_RE, sanitizeDescription } from "./catalog.ts";
 import type { Catalog } from "./catalog.ts";
 import type { Selected } from "./select.ts";
 
@@ -24,11 +24,20 @@ export type LockEntry = {
   immutable: boolean;
   description: string;
   assets: Record<string, string>;
+  variants?: Record<string, Record<string, string>>;
 };
 
 export type Releases = Record<string, LockEntry>;
 
-const LOCK_FIELDS = new Set(["version", "tag", "commit", "immutable", "description", "assets"]);
+const LOCK_FIELDS = new Set([
+  "version",
+  "tag",
+  "commit",
+  "immutable",
+  "description",
+  "assets",
+  "variants",
+]);
 
 export function parseLockEntry(key: string, raw: unknown): LockEntry {
   if (!isRecord(raw)) {
@@ -39,7 +48,7 @@ export function parseLockEntry(key: string, raw: unknown): LockEntry {
       fail(`releases ${key}: unknown field "${f}"`);
     }
   }
-  const { version, tag, commit, immutable, description, assets } = raw;
+  const { version, tag, commit, immutable, description, assets, variants } = raw;
   if (typeof version !== "string" || !VERSION_RE.test(version)) {
     fail(`releases ${key}: version must match ${VERSION_RE}`);
   }
@@ -53,19 +62,7 @@ export function parseLockEntry(key: string, raw: unknown): LockEntry {
     fail(`releases ${key}: immutable must be a boolean`);
   }
   const desc = sanitizeDescription(key, description);
-  if (!isRecord(assets) || Object.keys(assets).length === 0) {
-    fail(`releases ${key}: assets must be a non-empty object`);
-  }
-  const assetMap: Record<string, string> = {};
-  for (const [t, h] of Object.entries(assets)) {
-    if (!TARGET_SET.has(t)) {
-      fail(`releases ${key}: unknown target "${t}"`);
-    }
-    if (typeof h !== "string" || !SHA256_RE.test(h)) {
-      fail(`releases ${key}: asset hash for "${t}" must match ${SHA256_RE}`);
-    }
-    assetMap[t] = h;
-  }
+  const assetMap = parseAssetMap(key, "assets", assets);
   const entry: LockEntry = {
     version,
     tag,
@@ -74,7 +71,37 @@ export function parseLockEntry(key: string, raw: unknown): LockEntry {
     description: desc,
     assets: assetMap,
   };
+  if (variants !== undefined) {
+    if (!isRecord(variants) || Object.keys(variants).length === 0) {
+      fail(`releases ${key}: variants must be a non-empty object`);
+    }
+    const variantMap: Record<string, Record<string, string>> = {};
+    for (const [v, inner] of Object.entries(variants)) {
+      if (!VARIANT_RE.test(v)) {
+        fail(`releases ${key}: variant name "${v}" must match ${VARIANT_RE}`);
+      }
+      variantMap[v] = parseAssetMap(key, `variants.${v}`, inner);
+    }
+    entry.variants = variantMap;
+  }
   return entry;
+}
+
+function parseAssetMap(key: string, field: string, raw: unknown): Record<string, string> {
+  if (!isRecord(raw) || Object.keys(raw).length === 0) {
+    fail(`releases ${key}: ${field} must be a non-empty object`);
+  }
+  const map: Record<string, string> = {};
+  for (const [t, h] of Object.entries(raw)) {
+    if (!TARGET_SET.has(t)) {
+      fail(`releases ${key}: unknown target "${t}"`);
+    }
+    if (typeof h !== "string" || !SHA256_RE.test(h)) {
+      fail(`releases ${key}: ${field} hash for "${t}" must match ${SHA256_RE}`);
+    }
+    map[t] = h;
+  }
+  return map;
 }
 
 export function parseReleases(raw: unknown): Releases {
@@ -91,6 +118,26 @@ export function parseReleases(raw: unknown): Releases {
   return releases;
 }
 
+// Catalog ↔ lock consistency for the offline build: identical key sets,
+// and every locked variant declared in the catalog (a declared variant
+// may be absent from the lock — the locked release may predate its first
+// published assets).
+export function validateReleases(catalog: Catalog, releases: Releases): void {
+  const cKeys = Object.keys(catalog).toSorted();
+  const rKeys = Object.keys(releases).toSorted();
+  if (JSON.stringify(cKeys) !== JSON.stringify(rKeys)) {
+    fail(`catalog/lock key mismatch: catalog=[${cKeys.join(",")}] releases=[${rKeys.join(",")}]`);
+  }
+  for (const key of cKeys) {
+    const declared = new Set(catalog[key]?.variants);
+    for (const v of Object.keys(releases[key]?.variants ?? {})) {
+      if (!declared.has(v)) {
+        fail(`${key}: locked variant "${v}" is not declared in the catalog`);
+      }
+    }
+  }
+}
+
 export function loadReleases(path: string): Releases {
   if (!existsSync(path)) {
     return {};
@@ -98,20 +145,35 @@ export function loadReleases(path: string): Releases {
   return parseReleases(JSON.parse(readFileSync(path, "utf8")));
 }
 
+function sortedEntries(map: Record<string, string>): string {
+  return JSON.stringify(Object.entries(map).toSorted(([a], [b]) => a.localeCompare(b)));
+}
+
 // Whether a fresh selection differs enough from the lock to re-verify
-// archives: new version, or any target/hash in the asset map changed
-// (e.g. a maintainer re-uploaded an asset with different bytes).
+// archives: new version, or any target/hash in the asset maps (default
+// and variants alike) changed — e.g. a maintainer re-uploaded an asset
+// with different bytes, or a variant appeared/dropped.
 export function changed(
   previous: LockEntry | undefined,
   selected: Selected,
   force: boolean,
 ): boolean {
-  return (
-    force ||
-    previous === undefined ||
-    previous.version !== selected.version ||
-    JSON.stringify(Object.entries(previous.assets).toSorted(([a], [b]) => a.localeCompare(b))) !==
-      JSON.stringify(Object.entries(selected.assets).toSorted(([a], [b]) => a.localeCompare(b)))
+  if (force || previous === undefined || previous.version !== selected.version) {
+    return true;
+  }
+  if (sortedEntries(previous.assets) !== sortedEntries(selected.assets)) {
+    return true;
+  }
+  const prevVariants = previous.variants ?? {};
+  const nextVariants = selected.variants;
+  if (
+    JSON.stringify(Object.keys(prevVariants).toSorted()) !==
+    JSON.stringify(Object.keys(nextVariants).toSorted())
+  ) {
+    return true;
+  }
+  return Object.entries(prevVariants).some(
+    ([v, map]) => sortedEntries(map) !== sortedEntries(nextVariants[v] ?? {}),
   );
 }
 

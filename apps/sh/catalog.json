@@ -6,7 +6,8 @@
     },
     "nosfry": {
       "repo": "qntx/nosfry",
-      "package": "nosfry"
+      "package": "nosfry",
+      "variants": ["onion"]
     }
   }
 }

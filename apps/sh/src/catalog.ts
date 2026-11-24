@@ -5,6 +5,7 @@ export const KEY_RE: RegExp = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 export const REPO_RE: RegExp = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 export const PACKAGE_RE: RegExp = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
 export const SHA256_RE: RegExp = /^[0-9a-f]{64}$/;
+export const VARIANT_RE: RegExp = /^[a-z][a-z0-9]*$/;
 export const ENV_PREFIX_RE: RegExp = /^[A-Z0-9_]+$/;
 export const RESERVED_KEYS: ReadonlySet<string> = new Set(["index", "ps"]);
 
@@ -24,6 +25,7 @@ export type Target = (typeof TARGETS)[number];
 export type ToolSpec = {
   repo: string;
   package?: string;
+  variants?: string[];
 };
 
 export type Catalog = Record<string, ToolSpec>;
@@ -36,7 +38,7 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-const CATALOG_FIELDS = new Set(["repo", "package"]);
+const CATALOG_FIELDS = new Set(["repo", "package", "variants"]);
 
 function parseTool(key: string, raw: unknown): ToolSpec {
   if (!isObject(raw)) {
@@ -47,7 +49,7 @@ function parseTool(key: string, raw: unknown): ToolSpec {
       fail(`catalog ${key}: unknown field "${f}"`);
     }
   }
-  const { repo, package: pkg } = raw;
+  const { repo, package: pkg, variants } = raw;
   if (typeof repo !== "string" || !REPO_RE.test(repo)) {
     fail(`catalog ${key}: repo must match ${REPO_RE}`);
   }
@@ -57,6 +59,22 @@ function parseTool(key: string, raw: unknown): ToolSpec {
   const spec: ToolSpec = { repo };
   if (pkg !== undefined) {
     spec.package = pkg;
+  }
+  if (variants !== undefined) {
+    if (!Array.isArray(variants) || variants.length === 0) {
+      fail(`catalog ${key}: variants must be a non-empty array`);
+    }
+    const vs: string[] = [];
+    for (const v of variants) {
+      if (typeof v !== "string" || !VARIANT_RE.test(v)) {
+        fail(`catalog ${key}: variant must match ${VARIANT_RE}`);
+      }
+      vs.push(v);
+    }
+    if (new Set(vs).size !== vs.length) {
+      fail(`catalog ${key}: duplicate variant`);
+    }
+    spec.variants = vs;
   }
   return spec;
 }

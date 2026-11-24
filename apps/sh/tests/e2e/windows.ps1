@@ -27,6 +27,13 @@ $v = & $sb -Check
 if ($LASTEXITCODE -ne 0 -or -not $v) { throw "-Check failed (exit $LASTEXITCODE)" }
 $vpat = [regex]::Escape($v)
 
+# Unknown variant names are a usage error (exit 2) and install nothing.
+$global:LASTEXITCODE = 0
+& $sb -InstallDir $d -Variant zzz 2>$null
+if ($LASTEXITCODE -ne 2) { throw "-Variant zzz exit $LASTEXITCODE, expected 2" }
+if (Test-Path "$d/kobe.exe") { throw 'binary installed despite bad variant' }
+if (Test-Path $receipt) { throw 'receipt written despite bad variant' }
+
 # irm-style invocation (env-driven).
 $global:LASTEXITCODE = 0
 Invoke-Expression $src

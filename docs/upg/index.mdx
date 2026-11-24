@@ -34,5 +34,7 @@ println!("{}", upg::run(&TOOL, &args)?);
 
 The install dir comes from the receipt at
 `${XDG_CONFIG_HOME:-$HOME/.config}/qntx/receipts/<tool>.json` (Unix) or
-`%LOCALAPPDATA%\qntx\receipts\<tool>.json` (Windows). Child stdout is
-redirected to stderr so callers may print the `Report` as JSON on stdout.
+`%LOCALAPPDATA%\qntx\receipts\<tool>.json` (Windows). A build variant
+recorded there (`"variant"`) is preserved — the installer is re-run with
+the same variant. Child stdout is redirected to stderr so callers may
+print the `Report` as JSON on stdout.

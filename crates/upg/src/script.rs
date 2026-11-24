@@ -64,10 +64,14 @@ impl Installer {
     }
 
     /// Run the installer for an actual install; returns its exit code.
+    /// `variant` is the receipt's build variant so an upgrade reinstalls
+    /// the same build (`--variant onion`) rather than silently switching
+    /// back to the default.
     pub(crate) fn install(
         &self,
         dir: &str,
         version: Option<&Version>,
+        variant: Option<&str>,
         force: bool,
     ) -> Result<Option<i32>, Error> {
         match self {
@@ -81,6 +85,10 @@ impl Installer {
                     args.push("--version".to_owned());
                     args.push(v.to_string());
                 }
+                if let Some(v) = variant {
+                    args.push("--variant".to_owned());
+                    args.push(v.to_owned());
+                }
                 if force {
                     args.push("--force".to_owned());
                 }
@@ -91,6 +99,11 @@ impl Installer {
                 if let Some(v) = version {
                     params.push_str(" -Version '");
                     params.push_str(&ps_quote(&v.to_string()));
+                    params.push('\'');
+                }
+                if let Some(v) = variant {
+                    params.push_str(" -Variant '");
+                    params.push_str(&ps_quote(v));
                     params.push('\'');
                 }
                 if force {
@@ -260,10 +273,42 @@ mod tests {
         let inst = Installer::from_script(script);
         let v = inst.check().expect("check");
         assert_eq!(v, Version::new(1, 2, 3));
-        let code = inst.install(dir.to_str().expect("utf8 dir"), None, false);
+        let code = inst.install(dir.to_str().expect("utf8 dir"), None, None, false);
         assert!(matches!(code, Ok(Some(0))));
         let runs = std::fs::read_to_string(&counter).map_or(0, |c| c.lines().count());
         assert_eq!(runs, 2, "check + install ran the same script twice");
+        let _done = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn installer_passes_variant_to_script() {
+        // The injected script records its argv: `--variant onion` must
+        // reach it so upgrades keep the installed build variant.
+        let dir = std::env::temp_dir().join(format!("upg-var-{}", std::process::id()));
+        let args_file = dir.join("args");
+        let _ignored = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let script = format!("printf '%s\\n' \"$@\" > '{}'", args_file.display());
+        let inst = Installer::from_script(script);
+        let v = Version::new(0, 4, 0);
+        let code = inst.install(
+            dir.to_str().expect("utf8 dir"),
+            Some(&v),
+            Some("onion"),
+            false,
+        );
+        assert!(matches!(code, Ok(Some(0))));
+        let args = std::fs::read_to_string(&args_file).expect("args file");
+        let args: Vec<&str> = args.lines().collect();
+        assert!(
+            args.windows(2).any(|w| w == ["--variant", "onion"]),
+            "argv missing --variant onion: {args:?}"
+        );
+        assert!(
+            args.windows(2).any(|w| w == ["--version", "0.4.0"]),
+            "argv missing --version 0.4.0: {args:?}"
+        );
         let _done = std::fs::remove_dir_all(&dir);
     }
 }
