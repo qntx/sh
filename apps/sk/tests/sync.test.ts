@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vite-plus/test";
 
-import { nextLock, syncSource } from "../src/sync.ts";
+import { nextLock, syncSource } from "../src/source.ts";
 import { ENC, SHA, deps, extraFileListDir } from "./fixtures.ts";
 
 const NAME_ONLY = ENC.encode("---\nname: kobe\ndescription: d\n---\nx\n");
