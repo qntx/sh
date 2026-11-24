@@ -16,15 +16,15 @@
     }
   },
   "nosfry": {
-    "version": "0.3.0",
-    "tag": "v0.3.0",
-    "commit": "95bccbcbe99f956fe572ba0466abbeb1941e6f6c",
+    "version": "0.4.0",
+    "tag": "v0.4.0",
+    "commit": "d7893c832f106dc941334ba8b91819243a3ba373",
     "immutable": false,
     "description": "High-performance Nostr relay in Rust, for bare-metal servers and Cloudflare Workers.",
     "assets": {
-      "x86_64-unknown-linux-gnu": "c10776c725ff25f3a6533b32a3027a43b8c3b06f60f03f094906506fc072655a",
-      "aarch64-unknown-linux-gnu": "9f2739294e9f594d2bf474d573f5746c33595aa52f2712dc4c5433a066324c8e",
-      "aarch64-apple-darwin": "2b82602612c856277a94df829f9b17152d4cab83af6cfd879f3e8adc7c9bbad4"
+      "x86_64-unknown-linux-gnu": "d36f4a92972f79c1d2847f2fc45096d002b23c1ebc1f3dd3bf89ef2fa443e737",
+      "aarch64-unknown-linux-gnu": "ce8de61285089928dcfa8482234e3e9babe59d5a065c1c5a8275de68de11c9b1",
+      "aarch64-apple-darwin": "3e36f0471e94cd01c1a5421afb67968241dafb5ef6b6ec16906047896a589abc"
     }
   }
 }
