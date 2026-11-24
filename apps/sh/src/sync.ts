@@ -4,7 +4,6 @@
 // and `.cdx.json` SBOM sidecars are parsed but never fetched. Atomic:
 // any failure writes nothing.
 
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,6 +21,7 @@ import {
 
 import { parseCatalog, sanitizeDescription } from "./catalog.ts";
 import type { ToolSpec } from "./catalog.ts";
+import { inspectTar, inspectZip } from "./inspect.ts";
 import type { LockEntry } from "./lock.ts";
 import { changed, loadReleases, mergeReleases, pickToolKeys } from "./lock.ts";
 import { assetName, isWindows, selectRelease } from "./select.ts";
@@ -34,62 +34,6 @@ function sha256(buf: Uint8Array): string {
 
 function fail(tool: string, msg: string): never {
   throw new Error(`${tool}: ${msg}`);
-}
-
-// bsdtar and GNU tar both put the entry type in column 0 and the pathname
-// last; owner/group/date field counts differ between them.
-const TAR_LINE_RE = /^(\S+)\s.*\s(\S+)$/;
-
-function inspectTar(tool: string, bin: string, file: string): void {
-  const out = spawnSync("tar", ["-tvzf", file], { encoding: "utf8" });
-  if (out.status !== 0) {
-    fail(tool, `tar -tvzf failed: ${(out.stderr ?? "").trim()}`);
-  }
-  let found = false;
-  for (const line of out.stdout.split("\n")) {
-    if (line === "") {
-      continue;
-    }
-    const m = TAR_LINE_RE.exec(line);
-    const meta = m?.[1];
-    const path = m?.[2];
-    if (meta === undefined || path === undefined) {
-      fail(tool, `unparseable tar entry: ${line}`);
-    }
-    const type = meta.charAt(0);
-    if (type === "l" || type === "h") {
-      fail(tool, `tar contains a link entry: ${path}`);
-    }
-    if (path.startsWith("/") || path.split("/").includes("..")) {
-      fail(tool, `tar contains an unsafe path: ${path}`);
-    }
-    if (type === "-" && path === `./${bin}` && /x/i.test(meta.slice(1))) {
-      found = true;
-    }
-  }
-  if (!found) {
-    fail(tool, `tar has no executable ./${bin}`);
-  }
-}
-
-function inspectZip(tool: string, bin: string, file: string): void {
-  const out = spawnSync("unzip", ["-Z1", file], { encoding: "utf8" });
-  if (out.status !== 0) {
-    fail(tool, `unzip -Z1 failed: ${(out.stderr ?? "").trim()}`);
-  }
-  const names = out.stdout.split("\n").filter((n) => n !== "");
-  let found = false;
-  for (const n of names) {
-    if (n.startsWith("/") || n.split("/").includes("..")) {
-      fail(tool, `zip contains an unsafe path: ${n}`);
-    }
-    if (n === `${bin}.exe`) {
-      found = true;
-    }
-  }
-  if (!found) {
-    fail(tool, `zip has no ${bin}.exe at root`);
-  }
 }
 
 type ToolResult = {
@@ -161,9 +105,9 @@ async function syncTool(
         fail(key, `archive hash mismatch for ${name}: got ${got}, expected ${hash}`);
       }
       if (isWindows(target)) {
-        inspectZip(key, key, dest);
+        inspectZip(key, key, name, dest);
       } else {
-        inspectTar(key, key, dest);
+        inspectTar(key, key, name, dest);
       }
     }
     /* oxlint-enable no-await-in-loop */

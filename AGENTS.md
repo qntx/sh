@@ -47,6 +47,7 @@ shellcheck -s sh apps/sh/tests/e2e/unix.sh
 for f in apps/sh/dist/*.sh; do shfmt -i 4 -ci -d "$f"; done
 shfmt -i 4 -ci -d apps/sh/tests/e2e/unix.sh
 sh apps/sh/tests/e2e/unix.sh apps/sh/dist/kobe.sh   # e2e on Unix
+PIN_VERSION=0.4.0 sh apps/sh/tests/e2e/unix.sh apps/sh/dist/nosfry.sh
 # on Windows runners:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File apps/sh/tests/e2e/windows.ps1
 #   pwsh -NoProfile -File apps/sh/tests/e2e/windows.ps1

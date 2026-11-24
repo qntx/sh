@@ -358,22 +358,31 @@ install() {
     _i_tail=$(printf '%s' "$_i_sum" | cut -c57-64)
     say 'Verified' "sha256 ${_i_short}...${_i_tail}"
 
-    tar -xzf "$_i_tmp/$_i_asset" -C "$_i_tmp" "./$TOOL" ||
-        err "archive has no ./$TOOL member"
-    if [ ! -f "$_i_tmp/$TOOL" ] || [ -L "$_i_tmp/$TOOL" ]; then
+    # Flat archives keep the binary at ./$TOOL; releases that wrap it in a
+    # single top-level directory use <stem>/$TOOL (stem = asset name minus
+    # .tar.gz). Try flat first, then nested.
+    _i_stem=${_i_asset%.tar.gz}
+    if tar -xzf "$_i_tmp/$_i_asset" -C "$_i_tmp" "./$TOOL" 2>/dev/null; then
+        _i_bin="$_i_tmp/$TOOL"
+    elif tar -xzf "$_i_tmp/$_i_asset" -C "$_i_tmp" "$_i_stem/$TOOL"; then
+        _i_bin="$_i_tmp/$_i_stem/$TOOL"
+    else
+        err "archive has no ./$TOOL or $_i_stem/$TOOL member"
+    fi
+    if [ ! -f "$_i_bin" ] || [ -L "$_i_bin" ]; then
         err "extracted $TOOL is not a regular file"
     fi
-    chmod 755 "$_i_tmp/$TOOL"
+    chmod 755 "$_i_bin"
 
     _i_escaped=$(printf '%s' "$_i_version" | sed 's/\./\\./g')
-    if ! "$_i_tmp/$TOOL" --version 2>&1 |
+    if ! "$_i_bin" --version 2>&1 |
         grep -Eq "(^|[^0-9.])${_i_escaped}([^0-9.]|\$)"; then
         err "self-check failed: $TOOL --version did not report $_i_version"
     fi
     say 'Verified' "runs $_i_version"
 
     mkdir -p "$_i_dir"
-    cp "$_i_tmp/$TOOL" "$_i_dir/.$TOOL.tmp.$$"
+    cp "$_i_bin" "$_i_dir/.$TOOL.tmp.$$"
     chmod 755 "$_i_dir/.$TOOL.tmp.$$"
     mv -f "$_i_dir/.$TOOL.tmp.$$" "$_i_dir/$TOOL"
 

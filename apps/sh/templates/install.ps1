@@ -233,12 +233,21 @@ function Install-Tool {
         if ($got -ne $hash) { throw (Get-InstallError 1 "sha256 mismatch for $asset") }
         Write-Status 'Verified' "sha256 $($got.Substring(0, 12))...$($got.Substring($got.Length - 8))"
 
+        # Same layout rule as the sh template: $Tool.exe at the zip root
+        # or under a single <stem>/ directory (stem = asset minus .zip).
+        $stem = $asset -replace '\.zip$', ''
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $zip = [IO.Compression.ZipFile]::OpenRead($ap)
         try {
-            $member = $zip.Entries | Where-Object { $_.FullName -eq "$Tool.exe" } | Select-Object -First 1
-            if (-not $member) { throw (Get-InstallError 1 "archive has no $Tool.exe member") }
-            [IO.Compression.ZipFileExtensions]::ExtractToFile($member, (Join-Path $tmp "$Tool.exe"), $true)
+            $members = @($zip.Entries | Where-Object {
+                $_.FullName -eq "$Tool.exe" -or $_.FullName -eq "$stem/$Tool.exe" })
+            if ($members.Count -gt 1) {
+                throw (Get-InstallError 1 "archive has ambiguous layout: both $Tool.exe and $stem/$Tool.exe")
+            }
+            if ($members.Count -eq 0) {
+                throw (Get-InstallError 1 "archive has no $Tool.exe or $stem/$Tool.exe member")
+            }
+            [IO.Compression.ZipFileExtensions]::ExtractToFile($members[0], (Join-Path $tmp "$Tool.exe"), $true)
         }
         finally {
             $zip.Dispose()
