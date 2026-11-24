@@ -1,7 +1,9 @@
 // Sync task (`bun run sync`): resolve each source repo's skill set, verify
-// SKILL.md bytes, and rewrite skills.lock.json + content/. Atomic: any
-// failure writes nothing. The sync logic lives in source.ts so tests can
-// import it without running this entrypoint.
+// SKILL.md bytes, and rewrite skills.lock.json + content/. Atomic per
+// source: a failed source keeps its previous lock entry and its content
+// dirs untouched while every other source syncs and is written. The sync
+// logic lives in source.ts so tests can import it without running this
+// entrypoint.
 
 import {
   mkdirSync,
@@ -14,7 +16,7 @@ import {
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { isRecord, lockJson, writeIfChanged } from "@qntx/sync";
+import { isRecord, lockJson, settle, writeIfChanged, writeStatus } from "@qntx/sync";
 
 import { fail, loadLock } from "./lock.ts";
 import { mergeLock, realDeps, syncSource } from "./source.ts";
@@ -57,25 +59,21 @@ async function main(): Promise<number> {
         })();
 
   const previous = loadLock(lockPath);
-  const results: SourceResult[] = [];
-  const failures: string[] = [];
   const summary: string[] = [];
-  /* oxlint-disable no-await-in-loop */
-  for (const source of todo) {
+  const { results, status } = await settle(todo, async (source) => {
     try {
-      // oxlint-disable-next-line no-await-in-loop
       const r = await syncSource(source, realDeps);
-      results.push(r);
       summary.push(
         `- ${source} @ ${r.entry.ref}: ${Object.keys(r.entry.skills).toSorted().join(", ")}`,
       );
+      return r;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      failures.push(`${source}: ${msg}`);
       summary.push(`- ${source}: FAILED — ${msg}`);
+      throw error;
     }
-  }
-  /* oxlint-enable no-await-in-loop */
+  });
+  const resultList: SourceResult[] = [...results.values()];
 
   const summaryFile = process.env["GITHUB_STEP_SUMMARY"];
   if (summaryFile !== undefined && summaryFile !== "") {
@@ -84,15 +82,12 @@ async function main(): Promise<number> {
   for (const line of summary) {
     process.stdout.write(`${line.slice(2)}\n`);
   }
-  for (const f of failures) {
-    process.stderr.write(`error: ${f}\n`);
-  }
-  if (failures.length > 0) {
-    return 1;
+  for (const [key, msg] of Object.entries(status.failed)) {
+    process.stderr.write(`error: ${key}: ${msg}\n`);
   }
 
-  // Sources not synced this run keep their previous lock entries.
-  const merged = mergeLock(sources, previous, results);
+  // Sources that failed or were not synced keep their previous entries.
+  const merged = mergeLock(sources, previous, resultList);
   // Skill-name uniqueness across the merged lock.
   const seen = new Set<string>();
   for (const [src, entry] of Object.entries(merged)) {
@@ -109,7 +104,7 @@ async function main(): Promise<number> {
   mkdirSync(contentDir, { recursive: true });
   // Write fetched skill files; entries kept from previous runs reuse the
   // bytes already on disk (they are hash-locked anyway).
-  for (const r of results) {
+  for (const r of resultList) {
     for (const [name, bytes] of r.files) {
       const dir = join(contentDir, name);
       mkdirSync(dir, { recursive: true });
@@ -128,7 +123,8 @@ async function main(): Promise<number> {
   } else {
     process.stdout.write("skills.lock.json unchanged\n");
   }
-  return 0;
+  writeStatus(process.env["SYNC_STATUS"], status);
+  return Object.keys(status.failed).length > 0 ? 1 : 0;
 }
 
 process.exitCode = await main();
