@@ -102,6 +102,32 @@ Preview a deploy (no traffic switch) from an app dir:
 cd apps/sh && bunx wrangler versions upload
 ```
 
+## Release
+
+`v*.*.*` tags release the `upg` crate; the apps are unversioned. From a
+clean, up-to-date `main`:
+
+```bash
+bun run release --current-version <current> --release <next> --yes
+```
+
+bumpp (`bump.config.ts`) creates `release/v<next>`, bumps
+`[workspace.package].version` and the `upg = "=x.y.z"` pin in
+`Cargo.toml`, runs `cargo update --workspace`, commits, pushes, and opens
+the pull request. `--current-version` is required because bumpp would
+otherwise read the root `package.json` (`0.0.0`). On that branch, move
+the `[Unreleased]` entries of `CHANGELOG.md` under `## [<next>] - <date>`
+and check the package with `cargo publish -p upg --dry-run --locked`.
+After the pull request merges, tag its merge commit by hand and push the
+tag; the `Publish crates` workflow publishes `upg` to crates.io (a tag
+pushed with `GITHUB_TOKEN` would not trigger it):
+
+```bash
+git checkout main && git pull --ff-only
+git tag -a v<next> -m "upg v<next>" <merge-commit>
+git push origin v<next>
+```
+
 ## Commits
 
 English Conventional Commits: `type(scope): subject` (`feat`, `fix`,
