@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   set — a `deploy-sk` job builds `apps/sk` at the pushed commit and runs
   `wrangler deploy` (the exact version `apps/sk/package.json` pins) in
   the `production` GitHub environment, through qntx/workflows' reusable
-  `deploy-cloudflare.yml` (pinned to a main commit until v2.14.0 ships).
+  `deploy-cloudflare.yml`.
   A missing `CLOUDFLARE_API_TOKEN` environment secret fails the run with
   instructions, and a failing deploy is tracked by a `sync: sk deploy
   failing` issue.
