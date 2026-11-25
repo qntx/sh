@@ -178,10 +178,7 @@ jobs:
   deploy-sk:
     needs: [sync, sk-credentials]
     if: ${{ !cancelled() && needs.sk-credentials.result == 'success' }}
-    # deploy-cloudflare.yml is not in a qntx/workflows release yet, so it is
-    # pinned to the main commit that added it (qntx/workflows#132). Move to
-    # @v2 after v2.14.0 is released.
-    uses: qntx/workflows/.github/workflows/deploy-cloudflare.yml@0e58414f3abfca70d33a2c61f993495bb20882fb
+    uses: qntx/workflows/.github/workflows/deploy-cloudflare.yml@v2
     permissions:
       contents: read
     secrets:
