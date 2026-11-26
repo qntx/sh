@@ -36,6 +36,7 @@
 *.eot   binary
 *.zip   binary
 *.pdf   binary
+*.elf   binary
 
 # Generated / lockfiles
 bun.lock linguist-generated=true

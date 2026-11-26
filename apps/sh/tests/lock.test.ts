@@ -4,8 +4,11 @@ import { join } from "node:path";
 
 import { describe, expect, test } from "vite-plus/test";
 
-import type { LockEntry } from "../src/lock.ts";
-import { changed, loadReleases, mergeReleases } from "../src/lock.ts";
+import type { LockAsset, LockEntry } from "../src/lock.ts";
+import { changed, loadReleases, mergeReleases, parseLockEntry } from "../src/lock.ts";
+
+const record = (assets: Record<string, string>): Record<string, LockAsset> =>
+  Object.fromEntries(Object.entries(assets).map(([t, sha256]) => [t, { sha256 }]));
 
 const entry = (version: string, assets: Record<string, string>): LockEntry => ({
   version,
@@ -13,7 +16,7 @@ const entry = (version: string, assets: Record<string, string>): LockEntry => ({
   commit: "a".repeat(40),
   immutable: false,
   description: "",
-  assets,
+  assets: record(assets),
 });
 
 const H1 = "a".repeat(64);
@@ -35,6 +38,35 @@ describe("loadReleases", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("parseLockEntry asset records", () => {
+  const base = {
+    version: "1.0.0",
+    tag: "v1.0.0",
+    commit: "a".repeat(40),
+    immutable: false,
+    description: "",
+  };
+
+  test("record parsing keeps sha256 and glibc", () => {
+    const e = parseLockEntry("kobe", {
+      ...base,
+      assets: { "x86_64-unknown-linux-gnu": { sha256: H1, glibc: "2.28" } },
+    });
+    expect(e.assets).toStrictEqual({
+      "x86_64-unknown-linux-gnu": { sha256: H1, glibc: "2.28" },
+    });
+  });
+
+  test.each<[string, unknown]>([
+    ["legacy string form", { "x86_64-unknown-linux-gnu": H1 }],
+    ["glibc on a musl target", { "x86_64-unknown-linux-musl": { sha256: H1, glibc: "2.28" } }],
+    ["bad glibc value", { "x86_64-unknown-linux-gnu": { sha256: H1, glibc: "2.x" } }],
+    ["unknown asset field", { "x86_64-unknown-linux-gnu": { sha256: H1, size: 3 } }],
+  ])("rejects %s", (_label, assets) => {
+    expect(() => parseLockEntry("kobe", { ...base, assets })).toThrow(/.+/);
   });
 });
 
@@ -67,20 +99,28 @@ describe("changed", () => {
   });
 
   test("removed locked variant re-verifies", () => {
-    const p: LockEntry = { ...prev, variants: { onion: { t1: H1 } } };
+    const p: LockEntry = { ...prev, variants: { onion: record({ t1: H1 }) } };
     expect(changed(p, sel, false)).toBe(true);
   });
 
   test("variant hash change re-verifies", () => {
-    const p: LockEntry = { ...prev, variants: { onion: { t1: H1 } } };
+    const p: LockEntry = { ...prev, variants: { onion: record({ t1: H1 }) } };
     const s = { ...sel, variants: { onion: { t1: H2 } } };
     expect(changed(p, s, false)).toBe(true);
   });
 
   test("unchanged locked variant does not re-verify", () => {
-    const p: LockEntry = { ...prev, variants: { onion: { t1: H1 } } };
+    const p: LockEntry = { ...prev, variants: { onion: record({ t1: H1 }) } };
     const s = { ...sel, variants: { onion: { t1: H1 } } };
     expect(changed(p, s, false)).toBe(false);
+  });
+
+  test("glibc floor differences on identical hashes do not re-verify", () => {
+    const p: LockEntry = {
+      ...prev,
+      assets: { t1: { sha256: H1, glibc: "2.39" } },
+    };
+    expect(changed(p, sel, false)).toBe(false);
   });
 
   test("hash change re-verifies", () => {

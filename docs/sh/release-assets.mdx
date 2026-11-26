@@ -54,6 +54,17 @@ Exactly one binary member per archive:
 
 Link entries, absolute paths and `..` components are rejected.
 
+## The glibc floor
+
+Sync reads the version needs of each `*-linux-gnu` binary it locks and
+records the highest `GLIBC_x.y` as that asset's `glibc` field in
+`releases.json`. The installer then skips the gnu build on a Linux host
+whose glibc is older. The floor is measured from the shipped binary —
+the naming contract itself is unchanged. To reach hosts with older
+glibc, build against an older baseline via release-rust's `glibc-floor`
+setting, or ship a musl build, which the installer always prefers on
+Linux when present.
+
 ## Variants
 
 Assets of undeclared variants parse fine but are skipped — not fetched,

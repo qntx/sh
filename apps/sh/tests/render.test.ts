@@ -11,7 +11,7 @@ const lock: LockEntry = {
   commit: "a".repeat(40),
   immutable: true,
   description: "x",
-  assets: { "aarch64-apple-darwin": "b".repeat(64) },
+  assets: { "aarch64-apple-darwin": { sha256: "b".repeat(64) } },
 };
 
 describe("substitute", () => {
@@ -57,22 +57,43 @@ describe("renderSh", () => {
         "        *) return 1 ;;",
         "    esac",
         "}",
+        "asset_glibc() {",
+        '    case "$1" in',
+        "        *) return 1 ;;",
+        "    esac",
+        "}",
       ].join("\n"),
     );
+  });
+
+  test("unsafe glibc floor rejected", () => {
+    const bad: LockEntry = {
+      ...lock,
+      assets: { "x86_64-unknown-linux-gnu": { sha256: "b".repeat(64), glibc: "2; rm -rf /" } },
+    };
+    expect(() => renderSh("kobe", spec, bad)).toThrow("unsafe");
   });
 
   test("variant constants block", () => {
     const vSpec: ToolSpec = { repo: "qntx/nosfry", variants: ["onion"] };
     const vLock: LockEntry = {
       ...lock,
-      variants: { onion: { "aarch64-apple-darwin": "c".repeat(64) } },
+      assets: { "x86_64-unknown-linux-gnu": { sha256: "b".repeat(64), glibc: "2.39" } },
+      variants: {
+        onion: {
+          "aarch64-apple-darwin": { sha256: "c".repeat(64) },
+          "x86_64-unknown-linux-gnu": { sha256: "d".repeat(64), glibc: "2.39" },
+        },
+      },
     };
     const out = renderSh("nosfry", vSpec, vLock);
     expect(out).toContain("VARIANTS='onion'");
     // oxlint-disable-next-line no-template-curly-in-string
     expect(out).toContain("CFG_VARIANT=${NOSFRY_VARIANT-}");
-    expect(out).toContain(`aarch64-apple-darwin) printf '%s' '${"b".repeat(64)}' ;;`);
+    expect(out).toContain(`x86_64-unknown-linux-gnu) printf '%s' '${"b".repeat(64)}' ;;`);
     expect(out).toContain(`onion/aarch64-apple-darwin) printf '%s' '${"c".repeat(64)}' ;;`);
+    expect(out).toContain("x86_64-unknown-linux-gnu) printf '%s' '2.39' ;;");
+    expect(out).toContain("onion/x86_64-unknown-linux-gnu) printf '%s' '2.39' ;;");
   });
 });
 
@@ -82,7 +103,7 @@ describe("renderPs1", () => {
     const vSpec: ToolSpec = { repo: "qntx/nosfry", variants: ["onion"] };
     const vLock: LockEntry = {
       ...lock,
-      variants: { onion: { "x86_64-pc-windows-msvc": "d".repeat(64) } },
+      variants: { onion: { "x86_64-pc-windows-msvc": { sha256: "d".repeat(64) } } },
     };
     const out = renderPs1("nosfry", vSpec, vLock);
     expect(out).toContain("$Variants = @('onion')");

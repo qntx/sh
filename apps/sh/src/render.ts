@@ -5,7 +5,7 @@
 import { ENV_PREFIX_RE, KEY_RE, PACKAGE_RE, REPO_RE, SHA256_RE, envPrefix } from "./catalog.ts";
 import type { Catalog, ToolSpec } from "./catalog.ts";
 import { VARIANT_RE } from "./contract.ts";
-import { VERSION_RE } from "./lock.ts";
+import { GLIBC_RE, VERSION_RE } from "./lock.ts";
 import type { LockEntry, Releases } from "./lock.ts";
 
 export const MARKER = "# @qntx-constants";
@@ -33,16 +33,22 @@ function checkCommon(tool: string, spec: ToolSpec, lock: LockEntry): string {
   if (pkg !== "") {
     assert(PACKAGE_RE, pkg, "package");
   }
-  for (const [target, hash] of Object.entries(lock.assets)) {
-    assert(SHA256_RE, hash, `sha256 for ${target}`);
+  for (const [target, asset] of Object.entries(lock.assets)) {
+    assert(SHA256_RE, asset.sha256, `sha256 for ${target}`);
+    if (asset.glibc !== undefined) {
+      assert(GLIBC_RE, asset.glibc, `glibc for ${target}`);
+    }
   }
   for (const v of spec.variants ?? []) {
     assert(VARIANT_RE, v, "variant");
   }
   for (const [v, map] of Object.entries(lock.variants ?? {})) {
     assert(VARIANT_RE, v, "locked variant");
-    for (const [target, hash] of Object.entries(map)) {
-      assert(SHA256_RE, hash, `sha256 for ${v}/${target}`);
+    for (const [target, asset] of Object.entries(map)) {
+      assert(SHA256_RE, asset.sha256, `sha256 for ${v}/${target}`);
+      if (asset.glibc !== undefined) {
+        assert(GLIBC_RE, asset.glibc, `glibc for ${v}/${target}`);
+      }
     }
   }
   return prefix;
@@ -64,12 +70,25 @@ export function renderSh(tool: string, spec: ToolSpec, lock: LockEntry): string 
     "asset_sha256() {",
     '    case "$1" in',
   ];
-  for (const [target, hash] of Object.entries(lock.assets)) {
-    lines.push(`        ${target}) printf '%s' '${hash}' ;;`);
+  for (const [target, asset] of Object.entries(lock.assets)) {
+    lines.push(`        ${target}) printf '%s' '${asset.sha256}' ;;`);
   }
   for (const [variant, map] of Object.entries(lock.variants ?? {})) {
-    for (const [target, hash] of Object.entries(map)) {
-      lines.push(`        ${variant}/${target}) printf '%s' '${hash}' ;;`);
+    for (const [target, asset] of Object.entries(map)) {
+      lines.push(`        ${variant}/${target}) printf '%s' '${asset.sha256}' ;;`);
+    }
+  }
+  lines.push("        *) return 1 ;;", "    esac", "}", "asset_glibc() {", '    case "$1" in');
+  for (const [target, asset] of Object.entries(lock.assets)) {
+    if (asset.glibc !== undefined) {
+      lines.push(`        ${target}) printf '%s' '${asset.glibc}' ;;`);
+    }
+  }
+  for (const [variant, map] of Object.entries(lock.variants ?? {})) {
+    for (const [target, asset] of Object.entries(map)) {
+      if (asset.glibc !== undefined) {
+        lines.push(`        ${variant}/${target}) printf '%s' '${asset.glibc}' ;;`);
+      }
     }
   }
   lines.push("        *) return 1 ;;", "    esac", "}");
@@ -88,12 +107,12 @@ export function renderPs1(tool: string, spec: ToolSpec, lock: LockEntry): string
     `$Variants = @(${variants})`,
     "$Sha256 = [ordered]@{",
   ];
-  for (const [target, hash] of Object.entries(lock.assets)) {
-    lines.push(`    '${target}' = '${hash}'`);
+  for (const [target, asset] of Object.entries(lock.assets)) {
+    lines.push(`    '${target}' = '${asset.sha256}'`);
   }
   for (const [variant, map] of Object.entries(lock.variants ?? {})) {
-    for (const [target, hash] of Object.entries(map)) {
-      lines.push(`    '${variant}/${target}' = '${hash}'`);
+    for (const [target, asset] of Object.entries(map)) {
+      lines.push(`    '${variant}/${target}' = '${asset.sha256}'`);
     }
   }
   lines.push("}");

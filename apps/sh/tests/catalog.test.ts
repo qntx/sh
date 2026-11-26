@@ -44,7 +44,7 @@ const lock = {
   commit: "a".repeat(40),
   immutable: true,
   description: "x",
-  assets: { "aarch64-apple-darwin": "b".repeat(64) },
+  assets: { "aarch64-apple-darwin": { sha256: "b".repeat(64) } },
 };
 
 describe("parseLockEntry", () => {
@@ -54,28 +54,50 @@ describe("parseLockEntry", () => {
 
   test.each([
     [{ ...lock, tag: "v6.0.1" }],
-    [{ ...lock, assets: { "riscv64-linux": "b".repeat(64) } }],
+    [{ ...lock, assets: { "riscv64-linux": { sha256: "b".repeat(64) } } }],
     [{ ...lock, assets: {} }],
-    [{ ...lock, assets: { "aarch64-apple-darwin": "BAD" } }],
+    // The legacy string form is gone: every asset is an object.
+    [{ ...lock, assets: { "aarch64-apple-darwin": "b".repeat(64) } }],
+    [{ ...lock, assets: { "aarch64-apple-darwin": {} } }],
+    [{ ...lock, assets: { "aarch64-apple-darwin": { sha256: "BAD" } } }],
+    [{ ...lock, assets: { "aarch64-apple-darwin": { sha256: "b".repeat(64), x: 1 } } }],
+    [
+      {
+        ...lock,
+        assets: { "aarch64-apple-darwin": { sha256: "b".repeat(64), glibc: "2.39" } },
+      },
+    ],
+    [
+      {
+        ...lock,
+        assets: { "x86_64-unknown-linux-gnu": { sha256: "b".repeat(64), glibc: "2" } },
+      },
+    ],
     [{ ...lock, extra: 1 }],
     [{ ...lock, commit: "xyz" }],
     [{ ...lock, description: 'has "quotes"' }],
     [{ ...lock, variants: {} }],
     [{ ...lock, variants: "onion" }],
-    [{ ...lock, variants: { Onion: { "aarch64-apple-darwin": "b".repeat(64) } } }],
+    [{ ...lock, variants: { Onion: { "aarch64-apple-darwin": { sha256: "b".repeat(64) } } } }],
     [{ ...lock, variants: { onion: {} } }],
-    [{ ...lock, variants: { onion: { "riscv64-linux": "b".repeat(64) } } }],
+    [{ ...lock, variants: { onion: { "riscv64-linux": { sha256: "b".repeat(64) } } } }],
     [{ ...lock, variants: { onion: { "aarch64-apple-darwin": "BAD" } } }],
   ])("rejects %o", (raw) => {
     expect(() => parseLockEntry("kobe", raw)).toThrow(/.+/);
   });
 
-  test("accepts a locked variant", () => {
+  test("accepts a locked variant and a measured gnu floor", () => {
     const e = parseLockEntry("nosfry", {
       ...lock,
-      variants: { onion: { "aarch64-apple-darwin": "c".repeat(64) } },
+      assets: { "x86_64-unknown-linux-gnu": { sha256: "b".repeat(64), glibc: "2.39" } },
+      variants: { onion: { "aarch64-apple-darwin": { sha256: "c".repeat(64) } } },
     });
-    expect(e.variants).toStrictEqual({ onion: { "aarch64-apple-darwin": "c".repeat(64) } });
+    expect(e.assets).toStrictEqual({
+      "x86_64-unknown-linux-gnu": { sha256: "b".repeat(64), glibc: "2.39" },
+    });
+    expect(e.variants).toStrictEqual({
+      onion: { "aarch64-apple-darwin": { sha256: "c".repeat(64) } },
+    });
   });
 });
 
@@ -99,12 +121,12 @@ describe("validateReleases", () => {
     const r = releases();
     r.nosfry = parseLockEntry("nosfry", {
       ...lock,
-      variants: { onion: { "aarch64-apple-darwin": "c".repeat(64) } },
+      variants: { onion: { "aarch64-apple-darwin": { sha256: "c".repeat(64) } } },
     });
     expect(() => validateReleases(catalog, r)).not.toThrow();
     r.kobe = parseLockEntry("kobe", {
       ...lock,
-      variants: { onion: { "aarch64-apple-darwin": "c".repeat(64) } },
+      variants: { onion: { "aarch64-apple-darwin": { sha256: "c".repeat(64) } } },
     });
     expect(() => validateReleases(catalog, r)).toThrow(/not declared/);
   });

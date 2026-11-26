@@ -179,6 +179,12 @@ export function archiveExt(target: string): "tar.gz" | "zip" {
   return ext;
 }
 
+// The targets whose binaries link glibc dynamically and therefore carry
+// a measured floor in the lock.
+export function isGlibcTarget(t: string): boolean {
+  return t.endsWith("-linux-gnu");
+}
+
 export const VARIANT_RE: RegExp = new RegExp(contract.variantPattern);
 
 export const examples: Contract["examples"] = contract.examples;

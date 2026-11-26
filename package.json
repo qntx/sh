@@ -20,7 +20,7 @@
     "test": "vp run -r test",
     "sync": "vp run sh#sync && vp run sk#sync",
     "prepare": "vp config",
-    "test:contract": "UPG_CONTRACT_SCRIPT=$PWD/apps/sh/dist/kobe.sh cargo test -p upg -- --include-ignored",
+    "test:contract": "UPG_CONTRACT_SCRIPT=$PWD/apps/sh/dist/kobe.sh UPG_CONTRACT_GLIBC_SCRIPT=$PWD/apps/sh/dist/nosfry.sh cargo test -p upg -- --include-ignored",
     "release": "bumpp",
     "deploy": "vp run -r build && vp run -r deploy"
   },
