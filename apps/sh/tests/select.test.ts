@@ -12,6 +12,16 @@ import { H, assetSet, fails, rel, sums } from "./fixtures/releases.ts";
 const T1 = "x86_64-unknown-linux-gnu";
 const T2 = "aarch64-apple-darwin";
 
+const KOBE_LOCK_SHA256 = Object.fromEntries(
+  Object.entries(
+    (
+      JSON.parse(
+        readFileSync(fileURLToPath(new URL("../releases.json", import.meta.url)), "utf8"),
+      ) as Record<string, { assets: Record<string, { sha256: string }> }>
+    )["kobe"]?.assets ?? {},
+  ).map(([t, a]) => [t, a.sha256]),
+);
+
 describe("selectRelease", () => {
   test("picks highest semver, not the 'latest' or newest date", async () => {
     // xmtp-like: Latest is ffi-v0.2.0; CLI line is v0.9.3 plus backport v0.10.0
@@ -55,7 +65,7 @@ describe("selectRelease", () => {
       commit: "a".repeat(40),
       immutable: false,
       description: "",
-      assets: { [T1]: H, [T2]: H },
+      assets: { [T1]: { sha256: H }, [T2]: { sha256: H } },
     };
     const rs = [rel("v1.0.0", assetSet("x", "1.0.0", [T1]))];
     await fails(selectRelease("o/r", "x", rs, prev, false, [], sums), "shrank");
@@ -202,11 +212,8 @@ describe("recorded fixtures", () => {
       [],
       fixtureSums(fx, calls),
     );
-    const lock = JSON.parse(
-      readFileSync(fileURLToPath(new URL("../releases.json", import.meta.url)), "utf8"),
-    ) as Record<string, { assets: Record<string, string> }>;
     expect(s.version).toBe("7.0.0");
-    expect(s.assets).toStrictEqual(lock["kobe"]?.assets);
+    expect(s.assets).toStrictEqual(KOBE_LOCK_SHA256);
     expect(s.skipped).toStrictEqual([]);
     expect(calls).toHaveLength(7);
   });
@@ -342,8 +349,8 @@ describe("SBOM and variant selection rules", () => {
       commit: "a".repeat(40),
       immutable: false,
       description: "",
-      assets: { [T1]: H },
-      variants: { onion: { [T1]: H, [T2]: H } },
+      assets: { [T1]: { sha256: H } },
+      variants: { onion: { [T1]: { sha256: H }, [T2]: { sha256: H } } },
     };
     const assets = [
       ...assetSet("x", "1.0.0", [T1]),
@@ -364,8 +371,8 @@ describe("SBOM and variant selection rules", () => {
       commit: "a".repeat(40),
       immutable: false,
       description: "",
-      assets: { [T1]: H },
-      variants: { onion: { [T1]: H } },
+      assets: { [T1]: { sha256: H } },
+      variants: { onion: { [T1]: { sha256: H } } },
     };
     const assets = assetSet("x", "1.0.0", [T1]);
     await fails(

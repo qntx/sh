@@ -28,11 +28,12 @@ bun run typecheck
 bun run build         # renders apps/sh/dist/ offline
 bun run test
 for f in apps/sh/dist/*.sh; do shellcheck -s sh "$f"; done
-shellcheck -s sh apps/sh/tests/e2e/unix.sh
+shellcheck -s sh apps/sh/tests/e2e/unix.sh apps/sh/tests/e2e/glibc.sh apps/sh/tests/fixtures/elf/build.sh
 for f in apps/sh/dist/*.sh; do shfmt -i 4 -ci -d "$f"; done
-shfmt -i 4 -ci -d apps/sh/tests/e2e/unix.sh
+shfmt -i 4 -ci -d apps/sh/tests/e2e/unix.sh apps/sh/tests/e2e/glibc.sh apps/sh/tests/fixtures/elf/build.sh
 sh apps/sh/tests/e2e/unix.sh apps/sh/dist/kobe.sh
 PIN_VERSION=0.3.0 VARIANT=onion VARIANT_VERSION=0.4.0 sh apps/sh/tests/e2e/unix.sh apps/sh/dist/nosfry.sh
+sh apps/sh/tests/e2e/glibc.sh apps/sh/dist   # container e2e, needs docker
 npx --yes markdownlint-cli2@0.23.3 "*.md" "docs/**/*.mdx"
 bun run test:contract
 cargo fmt --all --check

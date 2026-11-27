@@ -30,6 +30,7 @@ curl -fsSL https://sh.qntx.org/nosfry | sh -s -- --variant onion
 
 Every download is verified against a SHA-256 embedded in the served script
 for the locked latest version (or the release's own `.sha256` file for a
-pinned `--version`), self-checked (`<bin> --version` must report the target
-version before anything is replaced), and installed atomically. Replace
+pinned `--version`), self-checked (`<bin> --version` must exit 0 and
+report the target version before anything is replaced — a failed check
+prints the binary's own error), and installed atomically. Replace
 `kobe` with any tool name listed on the index page.

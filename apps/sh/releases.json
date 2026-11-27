@@ -6,13 +6,29 @@
     "immutable": true,
     "description": "Pure offline HD wallet generator: BIP-39 mnemonic to keys and addresses for 20 chains",
     "assets": {
-      "x86_64-unknown-linux-gnu": "a010b887aa1158c67d9d26b3fbed6ea23c969613507c006304916edda3049610",
-      "aarch64-unknown-linux-gnu": "16dc2869c6b7d756644a002a0d2c1f843364193281b5f119a026a84ce0f099c6",
-      "x86_64-unknown-linux-musl": "90edbd36d9af4711bccf6589225bd7e619b03d944ec3e44cc7b438fe882bae5a",
-      "aarch64-unknown-linux-musl": "b98d4277c7b16fd216f18d7cdf8cd6e06bd0dba9b99f346d6d1c1b880c44f710",
-      "aarch64-apple-darwin": "5757cd0964d0a5602e143bf1b379635c036a7016366baad99f157252bdf612f7",
-      "x86_64-pc-windows-msvc": "1130c011bb1e356514653e1b4adf0bd19f0b714b56b9e73524b0310bc02c0210",
-      "aarch64-pc-windows-msvc": "89a0ee96163b35c89bd0ee45db572b794f23126ed756fb193ce70f76f6d51d5d"
+      "x86_64-unknown-linux-gnu": {
+        "sha256": "a010b887aa1158c67d9d26b3fbed6ea23c969613507c006304916edda3049610",
+        "glibc": "2.39"
+      },
+      "aarch64-unknown-linux-gnu": {
+        "sha256": "16dc2869c6b7d756644a002a0d2c1f843364193281b5f119a026a84ce0f099c6",
+        "glibc": "2.39"
+      },
+      "x86_64-unknown-linux-musl": {
+        "sha256": "90edbd36d9af4711bccf6589225bd7e619b03d944ec3e44cc7b438fe882bae5a"
+      },
+      "aarch64-unknown-linux-musl": {
+        "sha256": "b98d4277c7b16fd216f18d7cdf8cd6e06bd0dba9b99f346d6d1c1b880c44f710"
+      },
+      "aarch64-apple-darwin": {
+        "sha256": "5757cd0964d0a5602e143bf1b379635c036a7016366baad99f157252bdf612f7"
+      },
+      "x86_64-pc-windows-msvc": {
+        "sha256": "1130c011bb1e356514653e1b4adf0bd19f0b714b56b9e73524b0310bc02c0210"
+      },
+      "aarch64-pc-windows-msvc": {
+        "sha256": "89a0ee96163b35c89bd0ee45db572b794f23126ed756fb193ce70f76f6d51d5d"
+      }
     }
   },
   "nosfry": {
@@ -22,15 +38,31 @@
     "immutable": false,
     "description": "High-performance Nostr relay in Rust, for bare-metal servers and Cloudflare Workers.",
     "assets": {
-      "x86_64-unknown-linux-gnu": "d36f4a92972f79c1d2847f2fc45096d002b23c1ebc1f3dd3bf89ef2fa443e737",
-      "aarch64-unknown-linux-gnu": "ce8de61285089928dcfa8482234e3e9babe59d5a065c1c5a8275de68de11c9b1",
-      "aarch64-apple-darwin": "3e36f0471e94cd01c1a5421afb67968241dafb5ef6b6ec16906047896a589abc"
+      "x86_64-unknown-linux-gnu": {
+        "sha256": "d36f4a92972f79c1d2847f2fc45096d002b23c1ebc1f3dd3bf89ef2fa443e737",
+        "glibc": "2.30"
+      },
+      "aarch64-unknown-linux-gnu": {
+        "sha256": "ce8de61285089928dcfa8482234e3e9babe59d5a065c1c5a8275de68de11c9b1",
+        "glibc": "2.30"
+      },
+      "aarch64-apple-darwin": {
+        "sha256": "3e36f0471e94cd01c1a5421afb67968241dafb5ef6b6ec16906047896a589abc"
+      }
     },
     "variants": {
       "onion": {
-        "x86_64-unknown-linux-gnu": "5c831a5ea280305587a551a74289ad31e91cb726f00eb0a96a49ce106e59afdb",
-        "aarch64-unknown-linux-gnu": "e11d55ab4ec57fe708982c99821eba857d755447a07aee6ee06c1774dae204fd",
-        "aarch64-apple-darwin": "e23e37bbbf96e8a4f5fe220d93b24d3735c3cecffd4a4d5f8e1a60615f01941f"
+        "x86_64-unknown-linux-gnu": {
+          "sha256": "5c831a5ea280305587a551a74289ad31e91cb726f00eb0a96a49ce106e59afdb",
+          "glibc": "2.30"
+        },
+        "aarch64-unknown-linux-gnu": {
+          "sha256": "e11d55ab4ec57fe708982c99821eba857d755447a07aee6ee06c1774dae204fd",
+          "glibc": "2.30"
+        },
+        "aarch64-apple-darwin": {
+          "sha256": "e23e37bbbf96e8a4f5fe220d93b24d3735c3cecffd4a4d5f8e1a60615f01941f"
+        }
       }
     }
   }

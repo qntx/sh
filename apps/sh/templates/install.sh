@@ -139,6 +139,11 @@ say() {
     fi
 }
 
+warn() {
+    [ "${_say_quiet:-0}" = 1 ] && return 0
+    printf 'warning: %s\n' "$1" >&2
+}
+
 err() {
     printf 'error: %s\n' "$1" >&2
     exit 1
@@ -224,9 +229,32 @@ is_musl_host() {
     return 1
 }
 
+# The host's glibc as MAJOR.MINOR, or nothing when it cannot be told:
+# `getconf GNU_LIBC_VERSION` ("glibc 2.28"), else the last field of the
+# first `ldd --version` line ("ldd (GNU libc) 2.28").
+host_glibc() {
+    _gl_v=$(getconf GNU_LIBC_VERSION 2>/dev/null || true)
+    case "$_gl_v" in
+        'glibc '*) _gl_v=${_gl_v#glibc } ;;
+        *) _gl_v=$(ldd --version 2>&1 | head -n 1 | sed 's/.*[[:space:]]//') ;;
+    esac
+    printf '%s\n' "$_gl_v" | sed -n 's/^\([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p'
+}
+
+# True when glibc MAJOR.MINOR $1 is older than $2.
+glibc_older() {
+    if [ "${1%%.*}" -ne "${2%%.*}" ]; then
+        [ "${1%%.*}" -lt "${2%%.*}" ]
+        return
+    fi
+    [ "${1#*.}" -lt "${2#*.}" ]
+}
+
 # Ordered target candidates for this host, one rule for locked and pinned
 # versions alike: Linux prefers the musl triple, then gnu on glibc hosts
 # only; macOS maps Rosetta shells onto aarch64; Windows shells exit 3.
+# The locked path additionally drops a gnu candidate whose measured floor
+# is newer than the host's glibc (locked_target).
 candidates() {
     _c_os=$(uname -s)
     _c_arch=$(uname -m)
@@ -263,18 +291,34 @@ candidates() {
 }
 
 # The locked version's target: the first host candidate whose sha256 is
-# embedded in the script (for the requested variant, if any). Prints it,
-# or exits 3 via err_platform when the lock has no build for this host;
-# the same selection for installs and --dry-run alike.
+# embedded in the script (for the requested variant, if any), skipping a
+# gnu build whose measured glibc floor is newer than the host's glibc.
+# Prints it, or exits 3 via err_platform when no locked build can run on
+# this host; the same selection for installs and --dry-run alike.
 locked_target() {
     _lt_variant=$1
     shift
+    _lt_need_target=''
+    _lt_need_floor=''
     for _lt_t in "$@"; do
-        if asset_sha256 "${_lt_variant:+$_lt_variant/}$_lt_t" >/dev/null 2>&1; then
-            printf '%s\n' "$_lt_t"
-            return 0
+        _lt_key="${_lt_variant:+$_lt_variant/}$_lt_t"
+        asset_sha256 "$_lt_key" >/dev/null 2>&1 || continue
+        if _lt_floor=$(asset_glibc "$_lt_key"); then
+            _lt_host=$(host_glibc)
+            if [ -z "$_lt_host" ]; then
+                warn "could not determine the glibc version; $TOOL $VERSION${_lt_variant:+ $_lt_variant} ($_lt_t) needs glibc >= $_lt_floor"
+            elif glibc_older "$_lt_host" "$_lt_floor"; then
+                _lt_need_target=$_lt_t
+                _lt_need_floor=$_lt_floor
+                continue
+            fi
         fi
+        printf '%s\n' "$_lt_t"
+        return 0
     done
+    if [ -n "$_lt_need_target" ]; then
+        err_platform "$TOOL $VERSION${_lt_variant:+ $_lt_variant} ($_lt_need_target) needs glibc >= $_lt_need_floor; this host has glibc $_lt_host"
+    fi
     err_platform "$TOOL has no prebuilt${_lt_variant:+ $_lt_variant} binary for this platform"
 }
 
@@ -431,11 +475,17 @@ install() {
     chmod 755 "$_i_bin"
 
     _i_escaped=$(printf '%s' "$_i_version" | sed 's/\./\\./g')
-    if ! "$_i_bin" --version 2>&1 |
+    if _i_vout=$("$_i_bin" --version 2>"$_i_tmp/version.err") && {
+        printf '%s\n' "$_i_vout"
+        cat "$_i_tmp/version.err"
+    } |
         grep -Eq "(^|[^0-9.])${_i_escaped}([^0-9.]|\$)"; then
-        err "self-check failed: $TOOL --version did not report $_i_version"
+        say 'Verified' "runs $_i_version"
+    else
+        printf 'error: self-check failed: %s --version did not report %s\n' "$TOOL" "$_i_version" >&2
+        cat "$_i_tmp/version.err" >&2
+        exit 1
     fi
-    say 'Verified' "runs $_i_version"
 
     mkdir -p "$_i_dir"
     cp "$_i_bin" "$_i_dir/.$TOOL.tmp.$$"

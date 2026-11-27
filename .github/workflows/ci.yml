@@ -81,9 +81,17 @@ jobs:
         run: |
           set -euo pipefail
           for f in apps/sh/dist/*.sh; do
+            shellcheck -s sh "$f"
+          done
+          shellcheck -s sh apps/sh/tests/e2e/unix.sh
+          shellcheck -s sh apps/sh/tests/e2e/glibc.sh
+          shellcheck -s sh apps/sh/tests/fixtures/elf/build.sh
+          for f in apps/sh/dist/*.sh; do
             shfmt -i 4 -ci -d "$f"
           done
           shfmt -i 4 -ci -d apps/sh/tests/e2e/unix.sh
+          shfmt -i 4 -ci -d apps/sh/tests/e2e/glibc.sh
+          shfmt -i 4 -ci -d apps/sh/tests/fixtures/elf/build.sh
       - name: Smoke scripts under POSIX shells
         run: |
           set -euo pipefail
@@ -147,6 +155,9 @@ jobs:
         run: |
           sh apps/sh/tests/e2e/unix.sh apps/sh/dist/kobe.sh
           PIN_VERSION=0.3.0 VARIANT=onion VARIANT_VERSION=0.4.0 sh apps/sh/tests/e2e/unix.sh apps/sh/dist/nosfry.sh
+      - name: Container e2e (glibc floor)
+        if: matrix.os == 'ubuntu-24.04'
+        run: sh apps/sh/tests/e2e/glibc.sh apps/sh/dist
       - name: Windows e2e (PowerShell 7)
         if: matrix.os == 'windows-2022'
         shell: pwsh

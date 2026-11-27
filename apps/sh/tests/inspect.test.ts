@@ -5,13 +5,21 @@
 // tar/zip at test time.
 
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, test } from "vite-plus/test";
 
-import { inspectTar, inspectZip } from "../src/inspect.ts";
+import { inspectArchive, inspectTar, inspectZip } from "../src/inspect.ts";
 
 const TAR_NAME = "x-1.0.0-aarch64-apple-darwin.tar.gz";
 const TAR_STEM = "x-1.0.0-aarch64-apple-darwin";
@@ -135,5 +143,52 @@ describe("inspectZip", () => {
     expect(() =>
       inspectZip("x", "x", ZIP_NAME, "x86_64-pc-windows-msvc", zipf(d, ["README"])),
     ).toThrow(/has no x\.exe or x-1\.0\.0-x86_64-pc-windows-msvc\/x\.exe/);
+  });
+});
+
+describe("inspectArchive", () => {
+  const ELF = fileURLToPath(new URL("fixtures/elf/glibc-2.28-x86_64.elf", import.meta.url));
+  const MUSL = fileURLToPath(new URL("fixtures/elf/musl-static-x86_64.elf", import.meta.url));
+  const GNU_NAME = "x-1.0.0-x86_64-unknown-linux-gnu.tar.gz";
+  const GNU_STEM = "x-1.0.0-x86_64-unknown-linux-gnu";
+  const MUSL_NAME = "x-1.0.0-x86_64-unknown-linux-musl.tar.gz";
+
+  function putFile(dir: string, rel: string, src: string): void {
+    const p = join(dir, rel);
+    mkdirSync(dirname(p), { recursive: true });
+    writeFileSync(p, readFileSync(src));
+    chmodSync(p, 0o755);
+  }
+
+  test("flat gnu member reports its measured floor", () => {
+    const d = join(work(), "src");
+    putFile(d, "x", ELF);
+    expect(
+      inspectArchive("x", "x", GNU_NAME, "x86_64-unknown-linux-gnu", tgz(d, ["./x"]), work()),
+    ).toStrictEqual({ glibc: "2.28" });
+  });
+
+  test("nested gnu member reports its measured floor", () => {
+    const d = join(work(), "src");
+    putFile(d, `${GNU_STEM}/x`, ELF);
+    expect(
+      inspectArchive("x", "x", GNU_NAME, "x86_64-unknown-linux-gnu", tgz(d, [GNU_STEM]), work()),
+    ).toStrictEqual({ glibc: "2.28" });
+  });
+
+  test("musl members are not measured", () => {
+    const d = join(work(), "src");
+    putFile(d, "x", MUSL);
+    expect(
+      inspectArchive("x", "x", MUSL_NAME, "x86_64-unknown-linux-musl", tgz(d, ["./x"]), work()),
+    ).toStrictEqual({});
+  });
+
+  test("a non-ELF gnu member fails the tool", () => {
+    const d = join(work(), "src");
+    put(d, "x");
+    expect(() =>
+      inspectArchive("x", "x", GNU_NAME, "x86_64-unknown-linux-gnu", tgz(d, ["./x"]), work()),
+    ).toThrow(/x: x-1\.0\.0-x86_64-unknown-linux-gnu\.tar\.gz: not an ELF file/);
   });
 });

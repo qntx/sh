@@ -25,9 +25,8 @@ import type { SyncStatus } from "@qntx/sync";
 
 import { parseCatalog, sanitizeDescription } from "./catalog.ts";
 import type { ToolSpec } from "./catalog.ts";
-import { archiveExt } from "./contract.ts";
-import { inspectTar, inspectZip } from "./inspect.ts";
-import type { LockEntry } from "./lock.ts";
+import { inspectArchive } from "./inspect.ts";
+import type { LockAsset, LockEntry } from "./lock.ts";
 import { changed, loadReleases, mergeReleases, pickToolKeys } from "./lock.ts";
 import { assetName, selectRelease } from "./select.ts";
 
@@ -91,25 +90,21 @@ async function syncTool(
 
   const didChange = changed(previous, selected, force);
 
-  const entry: LockEntry = {
-    version: selected.version,
-    tag: selected.tag,
-    commit: commit.sha,
-    immutable,
-    description,
-    assets: selected.assets,
-  };
-  if (Object.keys(selected.variants).length > 0) {
-    entry.variants = selected.variants;
-  }
-
-  if (didChange) {
+  let assets: Record<string, LockAsset>;
+  let variants: Record<string, Record<string, LockAsset>>;
+  if (!didChange && previous !== undefined) {
+    // Identical hashes mean identical bytes: keep the measured records.
+    ({ assets, variants = {} } = previous);
+  } else {
+    assets = {};
+    variants = {};
     const locked: Array<[string | undefined, Record<string, string>]> = [
       [undefined, selected.assets],
       ...Object.entries(selected.variants),
     ];
     /* oxlint-disable no-await-in-loop */
     for (const [variant, map] of locked) {
+      const out: Record<string, LockAsset> = {};
       for (const [target, hash] of Object.entries(map)) {
         const name = assetName(key, selected.version, target, variant);
         const url = `https://github.com/${spec.repo}/releases/download/${selected.tag}/${name}`;
@@ -119,14 +114,30 @@ async function syncTool(
         if (got !== hash) {
           fail(key, `archive hash mismatch for ${name}: got ${got}, expected ${hash}`);
         }
-        if (archiveExt(target) === "zip") {
-          inspectZip(key, key, name, target, dest);
-        } else {
-          inspectTar(key, key, name, target, dest);
-        }
+        out[target] = {
+          sha256: hash,
+          ...inspectArchive(key, key, name, target, dest, work),
+        };
+      }
+      if (variant === undefined) {
+        assets = out;
+      } else {
+        variants[variant] = out;
       }
     }
     /* oxlint-enable no-await-in-loop */
+  }
+
+  const entry: LockEntry = {
+    version: selected.version,
+    tag: selected.tag,
+    commit: commit.sha,
+    immutable,
+    description,
+    assets,
+  };
+  if (Object.keys(variants).length > 0) {
+    entry.variants = variants;
   }
 
   const note = didChange

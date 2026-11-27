@@ -5,8 +5,11 @@
 // paths are always rejected. The installers extract with the same rule.
 
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
 
-import { layoutMembers } from "./contract.ts";
+import { archiveExt, isGlibcTarget, layoutMembers } from "./contract.ts";
+import { ElfError, glibcFloor } from "./elf.ts";
 
 function fail(tool: string, msg: string): never {
   throw new Error(`${tool}: ${msg}`);
@@ -16,13 +19,15 @@ function fail(tool: string, msg: string): never {
 // last; owner/group/date field counts differ between them.
 const TAR_LINE_RE = /^(\S+)\s.*\s(\S+)$/;
 
+// Validate the tar layout and return the matched binary member (flat
+// "./<bin>" or nested "<stem>/<bin>").
 export function inspectTar(
   tool: string,
   bin: string,
   name: string,
   target: string,
   file: string,
-): void {
+): string {
   const stem = name.slice(0, -".tar.gz".length);
   const [flat, nested] = layoutMembers(target, bin, stem);
   const out = spawnSync("tar", ["-tvzf", file], { encoding: "utf8" });
@@ -63,6 +68,7 @@ export function inspectTar(
   if (!flatFound && !nestedFound) {
     fail(tool, `tar has no executable ${flat} or ${nested}`);
   }
+  return flatFound ? flat : nested;
 }
 
 export function inspectZip(
@@ -97,5 +103,45 @@ export function inspectZip(
   }
   if (!flatFound && !nestedFound) {
     fail(tool, `zip has no ${flat} or ${nested}`);
+  }
+}
+
+// Verify the archive layout and measure the shipped binary's glibc floor
+// on *-linux-gnu targets (the only ones that link glibc). Returns the
+// lock record's extra fields; {} everywhere else.
+export function inspectArchive(
+  tool: string,
+  bin: string,
+  name: string,
+  target: string,
+  file: string,
+  work: string,
+): { glibc?: string } {
+  if (archiveExt(target) === "zip") {
+    inspectZip(tool, bin, name, target, file);
+    return {};
+  }
+  const member = inspectTar(tool, bin, name, target, file);
+  if (!isGlibcTarget(target)) {
+    return {};
+  }
+  const dir = mkdtempSync(join(work, "elf-"));
+  try {
+    const out = spawnSync("tar", ["-xzf", file, "-C", dir, member], { encoding: "utf8" });
+    if (out.status !== 0) {
+      fail(tool, `tar -xzf ${member} failed: ${(out.stderr ?? "").trim()}`);
+    }
+    const buf = new Uint8Array(readFileSync(join(dir, member)));
+    try {
+      const glibc = glibcFloor(buf);
+      return glibc === undefined ? {} : { glibc };
+    } catch (error) {
+      if (error instanceof ElfError) {
+        fail(tool, `${name}: ${error.message}`);
+      }
+      throw error;
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 }

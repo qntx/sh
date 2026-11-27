@@ -7,16 +7,23 @@ import { isRecord } from "@qntx/sync";
 
 import { KEY_RE, SHA256_RE, sanitizeDescription } from "./catalog.ts";
 import type { Catalog } from "./catalog.ts";
-import { TARGETS, VARIANT_RE } from "./contract.ts";
+import { TARGETS, VARIANT_RE, isGlibcTarget } from "./contract.ts";
 import type { Selected } from "./select.ts";
 
 export const VERSION_RE: RegExp = /^\d+\.\d+\.\d+$/;
+export const GLIBC_RE: RegExp = /^\d+\.\d+$/;
 const COMMIT_RE: RegExp = /^[0-9a-f]{40}$/;
 const TARGET_SET = new Set<string>(TARGETS);
+const ASSET_FIELDS = new Set(["sha256", "glibc"]);
 
 function fail(msg: string): never {
   throw new Error(msg);
 }
+
+// One locked asset: its archive hash plus, on *-linux-gnu targets, the
+// glibc floor sync measured in the shipped binary (absent = measured,
+// no GLIBC version needs — e.g. a static binary).
+export type LockAsset = { sha256: string; glibc?: string };
 
 export type LockEntry = {
   version: string;
@@ -24,8 +31,8 @@ export type LockEntry = {
   commit: string;
   immutable: boolean;
   description: string;
-  assets: Record<string, string>;
-  variants?: Record<string, Record<string, string>>;
+  assets: Record<string, LockAsset>;
+  variants?: Record<string, Record<string, LockAsset>>;
 };
 
 export type Releases = Record<string, LockEntry>;
@@ -76,7 +83,7 @@ export function parseLockEntry(key: string, raw: unknown): LockEntry {
     if (!isRecord(variants) || Object.keys(variants).length === 0) {
       fail(`releases ${key}: variants must be a non-empty object`);
     }
-    const variantMap: Record<string, Record<string, string>> = {};
+    const variantMap: Record<string, Record<string, LockAsset>> = {};
     for (const [v, inner] of Object.entries(variants)) {
       if (!VARIANT_RE.test(v)) {
         fail(`releases ${key}: variant name "${v}" must match ${VARIANT_RE}`);
@@ -88,19 +95,38 @@ export function parseLockEntry(key: string, raw: unknown): LockEntry {
   return entry;
 }
 
-function parseAssetMap(key: string, field: string, raw: unknown): Record<string, string> {
+function parseAssetMap(key: string, field: string, raw: unknown): Record<string, LockAsset> {
   if (!isRecord(raw) || Object.keys(raw).length === 0) {
     fail(`releases ${key}: ${field} must be a non-empty object`);
   }
-  const map: Record<string, string> = {};
-  for (const [t, h] of Object.entries(raw)) {
+  const map: Record<string, LockAsset> = {};
+  for (const [t, a] of Object.entries(raw)) {
     if (!TARGET_SET.has(t)) {
       fail(`releases ${key}: unknown target "${t}"`);
     }
-    if (typeof h !== "string" || !SHA256_RE.test(h)) {
-      fail(`releases ${key}: ${field} hash for "${t}" must match ${SHA256_RE}`);
+    if (!isRecord(a)) {
+      fail(`releases ${key}: ${field} asset for "${t}" must be an object`);
     }
-    map[t] = h;
+    for (const f of Object.keys(a)) {
+      if (!ASSET_FIELDS.has(f)) {
+        fail(`releases ${key}: ${field} asset for "${t}": unknown field "${f}"`);
+      }
+    }
+    const { sha256, glibc } = a;
+    if (typeof sha256 !== "string" || !SHA256_RE.test(sha256)) {
+      fail(`releases ${key}: ${field} sha256 for "${t}" must match ${SHA256_RE}`);
+    }
+    const asset: LockAsset = { sha256 };
+    if (glibc !== undefined) {
+      if (!isGlibcTarget(t)) {
+        fail(`releases ${key}: ${field} glibc is only allowed on *-linux-gnu targets`);
+      }
+      if (typeof glibc !== "string" || !GLIBC_RE.test(glibc)) {
+        fail(`releases ${key}: ${field} glibc for "${t}" must match ${GLIBC_RE}`);
+      }
+      asset.glibc = glibc;
+    }
+    map[t] = asset;
   }
   return map;
 }
@@ -150,6 +176,16 @@ function sortedEntries(map: Record<string, string>): string {
   return JSON.stringify(Object.entries(map).toSorted(([a], [b]) => a.localeCompare(b)));
 }
 
+// Re-verification keys on hashes alone: the glibc floor is derived from
+// the same bytes, so an identical sha256 means an identical floor.
+function shaMap(map: Record<string, LockAsset>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [t, a] of Object.entries(map)) {
+    out[t] = a.sha256;
+  }
+  return out;
+}
+
 // Whether a fresh selection differs enough from the lock to re-verify
 // archives: new version, or any target/hash in the asset maps (default
 // and variants alike) changed — e.g. a maintainer re-uploaded an asset
@@ -162,7 +198,7 @@ export function changed(
   if (force || previous === undefined || previous.version !== selected.version) {
     return true;
   }
-  if (sortedEntries(previous.assets) !== sortedEntries(selected.assets)) {
+  if (sortedEntries(shaMap(previous.assets)) !== sortedEntries(selected.assets)) {
     return true;
   }
   const prevVariants = previous.variants ?? {};
@@ -174,7 +210,7 @@ export function changed(
     return true;
   }
   return Object.entries(prevVariants).some(
-    ([v, map]) => sortedEntries(map) !== sortedEntries(nextVariants[v] ?? {}),
+    ([v, map]) => sortedEntries(shaMap(map)) !== sortedEntries(nextVariants[v] ?? {}),
   );
 }
 
